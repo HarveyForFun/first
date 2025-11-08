@@ -3,28 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <title>个人日志空间</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 body {
-  font-family: Arial, sans-serif;
-  background: linear-gradient(to bottom right, #ffecd2, #fcb69f);
   margin: 0;
   padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  min-height: 100vh;
+  color: #fff;
+  overflow-x: hidden;
 }
 .container {
-  max-width: 700px;
+  max-width: 850px;
   margin: 50px auto;
-  background: rgba(255,255,255,0.9);
-  border-radius: 10px;
-  padding: 20px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
-h2 { text-align: center; }
-textarea, button, input { width: 100%; margin: 5px 0; padding: 10px; }
-ul { list-style: none; padding-left: 0; }
-li { margin: 5px 0; }
-button { cursor: pointer; }
-button:active { transform: scale(1.05); transition: 0.1s; }
-#authForm { max-width: 400px; margin: 50px auto; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; }
-#toggleAuth { text-align:center; margin-top:10px; cursor:pointer; color:blue; }
+h2 { text-align: center; font-size: 2rem; margin-bottom: 20px; }
+textarea {
+  width: 100%;
+  height: 180px;
+  padding: 15px;
+  font-size: 1.2rem;
+  font-family: 'Georgia', serif;
+  line-height: 1.6;
+  border-radius: 10px;
+  border: none;
+  resize: vertical;
+  outline: none;
+}
+input, select, button {
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+}
+button {
+  cursor: pointer;
+  background: linear-gradient(45deg, #ff6ec4, #7873f5);
+  color: #fff;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+button:hover { transform: scale(1.05); background: linear-gradient(45deg, #7873f5, #ff6ec4); }
+ul { list-style: none; padding-left: 0; max-height: 200px; overflow-y: auto; }
+li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border-radius: 5px; }
+#authForm { max-width: 400px; margin: 80px auto; background: rgba(0,0,0,0.75); padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.5);}
+#toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold; }
+select { background: rgba(255,255,255,0.2); color: #fff; }
+#calendar { margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -41,6 +74,26 @@ button:active { transform: scale(1.05); transition: 0.1s; }
 <!-- 日志主页面 -->
 <div class="container" id="mainPage" style="display:none;">
   <h2>生活日志</h2>
+
+  <!-- 日历选择 -->
+  <input type="text" id="calendar" placeholder="选择日期">
+  
+  <!-- 字体和字号选择 -->
+  <div style="display:flex; gap:10px; margin-bottom:10px;">
+    <select id="fontSelect">
+      <option value="Georgia, serif">Georgia</option>
+      <option value="'Segoe UI', sans-serif">Segoe UI</option>
+      <option value="Courier New, monospace">Courier New</option>
+      <option value="Arial, sans-serif">Arial</option>
+    </select>
+    <select id="fontSizeSelect">
+      <option value="1rem">16px</option>
+      <option value="1.2rem">18px</option>
+      <option value="1.4rem">20px</option>
+      <option value="1.6rem">22px</option>
+    </select>
+  </div>
+
   <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
   <button id="uploadBtn">上传日志</button>
 
@@ -49,8 +102,12 @@ button:active { transform: scale(1.05); transition: 0.1s; }
 
   <button id="historyBtn">历史记录</button>
   <ul id="historyLogs" style="display:none"></ul>
+
+  <h3>当天日志</h3>
+  <ul id="dayLogs"></ul>
 </div>
 
+<script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script type="module">
 // Firebase 初始化
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -73,6 +130,7 @@ const auth = getAuth(app);
 
 let isLogin = true;
 let currentUser = null;
+let allLogs = [];
 
 // 登录/注册函数
 function handleAuth(){
@@ -86,7 +144,7 @@ function handleAuth(){
         currentUser = res.user;
         document.getElementById('authForm').style.display = 'none';
         document.getElementById('mainPage').style.display = 'block';
-        loadRecentLogs();
+        loadAllLogs();
       })
       .catch(err => alert('登录失败: '+err.message));
   } else {
@@ -126,7 +184,7 @@ function addLifeLog() {
   })
   .then(() => {
     document.getElementById('lifeLog').value = '';
-    loadRecentLogs();
+    loadAllLogs();
     logBtn.style.backgroundColor = '#4CAF50';
     setTimeout(()=>{ logBtn.style.transform='scale(1)'; },200);
   })
@@ -137,26 +195,47 @@ function addLifeLog() {
   });
 }
 
-// 加载最近5条和历史记录（前端排序，不需要索引）
-async function loadRecentLogs() {
+// 加载所有日志
+async function loadAllLogs() {
   if (!currentUser) return;
   const userId = currentUser.uid;
   const recentLogs = document.getElementById('recentLogs');
   const historyLogs = document.getElementById('historyLogs');
+  const dayLogs = document.getElementById('dayLogs');
   recentLogs.innerHTML = '';
   historyLogs.innerHTML = '';
+  dayLogs.innerHTML = '';
 
   const q = query(collection(db, 'logs'), where('uid','==',userId));
   const snapshot = await getDocs(q);
+  allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  allLogs.sort((a,b) => b.ts - a.ts); // 最新在前
 
-  const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  docs.sort((a,b) => b.ts - a.ts); // 最新在前
-
-  docs.forEach((doc,i)=>{
+  allLogs.forEach((doc,i)=>{
     const li = document.createElement('li');
     li.textContent = doc.text;
     if(i<5) recentLogs.appendChild(li);
     historyLogs.appendChild(li.cloneNode(true));
+  });
+
+  // 默认显示今天日志
+  showDayLogs(new Date());
+}
+
+// 显示指定日期日志
+function showDayLogs(date) {
+  const dayLogs = document.getElementById('dayLogs');
+  dayLogs.innerHTML = '';
+  const start = new Date(date);
+  start.setHours(0,0,0,0);
+  const end = new Date(date);
+  end.setHours(23,59,59,999);
+
+  const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
+  logs.forEach(d=>{
+    const li = document.createElement('li');
+    li.textContent = d.text;
+    dayLogs.appendChild(li);
   });
 }
 
@@ -166,12 +245,31 @@ function toggleHistory(){
   el.style.display = el.style.display==='none'?'block':'none';
 }
 
+// 字体选择
+document.getElementById('fontSelect').addEventListener('change', e=>{
+  document.getElementById('lifeLog').style.fontFamily = e.target.value;
+});
+document.getElementById('fontSizeSelect').addEventListener('change', e=>{
+  document.getElementById('lifeLog').style.fontSize = e.target.value;
+});
+
 // ===== 绑定事件 =====
 document.getElementById('authButton').addEventListener('click', handleAuth);
 document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
 document.getElementById('historyBtn').addEventListener('click', toggleHistory);
 
+// 初始化 flatpickr 日历
+flatpickr("#calendar", {
+  dateFormat: "Y-m-d",
+  defaultDate: new Date(),
+  minDate: new Date().getFullYear() - 10 + "-01-01",
+  maxDate: new Date(),
+  onChange: function(selectedDates){
+    if(selectedDates.length) showDayLogs(selectedDates[0]);
+  }
+});
 </script>
+
 </body>
 </html>
