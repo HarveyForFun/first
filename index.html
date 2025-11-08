@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的上传网页</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input[type="file"], textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .links a {
+      display: inline-block;
+      margin-right: 20px;
+      color: #1a73e8;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .links a:hover {
+      text-decoration: underline;
+    }
+    img {
+      max-width: 100%;
+      margin-top: 10px;
+      border-radius: 8px;
+    }
+    pre {
+      background: #eee;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .download-link {
+      display: block;
+      margin-top: 8px;
+      color: #d2691e;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .download-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>我的上传网页</h1>
+  <div class="container">
+
+    <!-- 上传照片 -->
+    <div class="section">
+      <label for="photoUpload">上传照片</label>
+      <input type="file" id="photoUpload" accept="image/*">
+      <div id="photoPreview"></div>
+      <a id="photoDownload" class="download-link" href="#" download="photo.png" style="display:none;">下载照片</a>
+    </div>
+
+    <!-- 上传日志 -->
+    <div class="section">
+      <label for="logUpload">上传日志</label>
+      <textarea id="logUpload" rows="5" placeholder="在这里输入日志内容..."></textarea>
+      <button onclick="saveLog()">保存日志</button>
+      <pre id="logDisplay"></pre>
+      <a id="logDownload" class="download-link" href="#" download="log.txt" style="display:none;">下载日志</a>
+    </div>
+
+    <!-- 链接部分 -->
+    <div class="section links">
+      <a href="https://chat.openai.com/" target="_blank">ChatGPT</a>
+      <a href="https://grok3.ai/" target="_blank">Grok3</a>
+    </div>
+  </div>
+
+  <script>
+    // 照片预览与下载
+    const photoInput = document.getElementById('photoUpload');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoDownload = document.getElementById('photoDownload');
+
+    photoInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const imgData = e.target.result;
+          photoPreview.innerHTML = `<img src="${imgData}" alt="预览图片">`;
+          photoDownload.href = imgData;
+          photoDownload.style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // 保存日志到显示区和下载链接
+    function saveLog() {
+      const logContent = document.getElementById('logUpload').value;
+      document.getElementById('logDisplay').textContent = logContent;
+
+      const blob = new Blob([logContent], {type: 'text/plain'});
+      const logUrl = URL.createObjectURL(blob);
+      const logDownload = document.getElementById('logDownload');
+      logDownload.href = logUrl;
+      logDownload.style.display = 'block';
+
+      alert('日志已保存，可在下方下载');
+    }
+  </script>
+</body>
+</html>
