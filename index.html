@@ -23,17 +23,19 @@ ul { list-style: none; padding-left: 0; }
 li { margin: 5px 0; }
 button { cursor: pointer; }
 button:active { transform: scale(1.05); transition: 0.1s; }
-#loginForm { max-width: 400px; margin: 50px auto; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; }
+#authForm { max-width: 400px; margin: 50px auto; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; }
+#toggleAuth { text-align:center; margin-top:10px; cursor:pointer; color:blue; }
 </style>
 </head>
 <body>
 
-<!-- 登录表单 -->
-<div id="loginForm">
-  <h2>登录</h2>
+<!-- 登录/注册表单 -->
+<div id="authForm">
+  <h2 id="formTitle">登录</h2>
   <input type="email" id="email" placeholder="邮箱">
   <input type="password" id="password" placeholder="密码">
-  <button onclick="login()">登录</button>
+  <button id="authButton" onclick="login()">登录</button>
+  <div id="toggleAuth" onclick="toggleAuthForm()">切换到注册</div>
 </div>
 
 <!-- 日志主页面 -->
@@ -53,7 +55,7 @@ button:active { transform: scale(1.05); transition: 0.1s; }
 // Firebase 初始化
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
@@ -69,22 +71,41 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// 登录函数
-function login() {
+let isLogin = true;
+
+// 切换登录/注册表单
+function toggleAuthForm(){
+  isLogin = !isLogin;
+  document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
+  document.getElementById('authButton').textContent = isLogin ? '登录' : '注册';
+  document.getElementById('toggleAuth').textContent = isLogin ? '切换到注册' : '切换到登录';
+}
+
+// 登录/注册函数
+function login(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
   if(!email || !password) return alert('请输入邮箱和密码');
 
-  signInWithEmailAndPassword(auth, email, password)
-    .then(res => {
-      window.currentUser = res.user;
-      document.getElementById('loginForm').style.display = 'none';
-      document.getElementById('mainPage').style.display = 'block';
-      loadRecentLogs();
-    })
-    .catch(err => {
-      alert('登录失败，请检查邮箱密码: ' + err.message);
-    });
+  if(isLogin){
+    // 登录
+    signInWithEmailAndPassword(auth, email, password)
+      .then(res => {
+        window.currentUser = res.user;
+        document.getElementById('authForm').style.display = 'none';
+        document.getElementById('mainPage').style.display = 'block';
+        loadRecentLogs();
+      })
+      .catch(err => alert('登录失败: '+err.message));
+  } else {
+    // 注册
+    createUserWithEmailAndPassword(auth, email, password)
+      .then(res => {
+        alert('注册成功！请登录');
+        toggleAuthForm();
+      })
+      .catch(err => alert('注册失败: '+err.message));
+  }
 }
 
 // 上传日志
