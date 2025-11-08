@@ -81,7 +81,6 @@ function handleAuth(){
   if(!email || !password) return alert('请输入邮箱和密码');
 
   if(isLogin){
-    // 登录
     signInWithEmailAndPassword(auth, email, password)
       .then(res => {
         currentUser = res.user;
@@ -91,7 +90,6 @@ function handleAuth(){
       })
       .catch(err => alert('登录失败: '+err.message));
   } else {
-    // 注册
     createUserWithEmailAndPassword(auth, email, password)
       .then(res => {
         alert('注册成功！请登录');
@@ -115,9 +113,8 @@ function addLifeLog() {
   const text = document.getElementById('lifeLog').value.trim();
   if (!text) return alert('日志不能为空');
 
-  const user = currentUser;
-  if (!user) return alert('请先登录');
-  const userId = user.uid;
+  if (!currentUser) return alert('请先登录');
+  const userId = currentUser.uid;
 
   logBtn.style.transition = '0.2s';
   logBtn.style.transform = 'scale(1.1)';
@@ -142,6 +139,7 @@ function addLifeLog() {
 
 // 加载最近5条和历史记录
 async function loadRecentLogs() {
+  if (!currentUser) return;
   const userId = currentUser.uid;
   const recentLogs = document.getElementById('recentLogs');
   const historyLogs = document.getElementById('historyLogs');
@@ -164,13 +162,7 @@ function toggleHistory(){
   el.style.display = el.style.display==='none'?'block':'none';
 }
 
-// ====== 修复模块作用域问题 ======
-window.handleAuth = handleAuth;
-window.toggleAuthForm = toggleAuthForm;
-window.addLifeLog = addLifeLog;
-window.toggleHistory = toggleHistory;
-
-// ====== 绑定按钮事件 ======
+// ===== 绑定事件 =====
 document.getElementById('authButton').addEventListener('click', handleAuth);
 document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
