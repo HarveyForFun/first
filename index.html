@@ -2,245 +2,219 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>生活与工作管理（Firebase版）</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<title>个人生活与工作空间</title>
 <style>
-body,html{margin:0;padding:0;font-family:'Roboto',sans-serif;height:100%;overflow-x:hidden;}
-body{background:linear-gradient(270deg,#ff9a9e,#fad0c4,#a1c4fd,#c2e9fb);background-size:800% 800%;animation: gradientBG 20s ease infinite;position:relative;}
-@keyframes gradientBG{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
-#particleCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
-h1{text-align:center;color:#fff;margin:20px 0 20px 0;text-shadow:2px 2px 5px rgba(0,0,0,0.4);position:relative;z-index:1;}
-.container{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;position:relative;z-index:1;display:none;}
-.card{background:rgba(255,255,255,0.95);padding:20px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.1);flex:1 1 320px;max-width:500px;}
-.card h2{margin-top:0;color:#555;margin-bottom:15px;border-bottom:2px solid #4CAF50;padding-bottom:5px;}
-label{display:block;margin-bottom:6px;font-weight:600;}
-input,textarea,button{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid #ccc;box-sizing:border-box;}
-button{background-color:#4CAF50;color:white;border:none;border-radius:6px;cursor:pointer;}
-button:hover{background-color:#45a049;}
-.links a{display:inline-block;margin-right:15px;color:#1a73e8;text-decoration:none;font-weight:bold;}
-.links a:hover{text-decoration:underline;}
-.item-list{list-style:none;padding:0;margin:0;max-height:300px;overflow-y:auto;}
-.item-list li{margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
-.item-list li button{background-color:#f44336;margin-left:5px;}
-.item-list li button:hover{background-color:#d32f2f;}
-#loginBox{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.95);padding:30px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.2);z-index:2;}
-#historyContainer{display:none;margin-top:15px;}
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to bottom right, #ffecd2, #fcb69f);
+  margin: 0;
+  padding: 0;
+}
+.container {
+  display: flex;
+  justify-content: space-around;
+  padding: 20px;
+}
+.section {
+  background: rgba(255,255,255,0.9);
+  border-radius: 10px;
+  padding: 20px;
+  width: 45%;
+}
+h2 { text-align: center; }
+input, textarea, button { margin: 5px 0; width: 100%; }
+#recentPhotos img { width: 100px; margin: 5px; }
+#historyPhotos img { width: 50px; margin: 3px; }
 </style>
 </head>
 <body>
-<canvas id="particleCanvas"></canvas>
 
-<div id="loginBox">
-  <h2>登录 / 注册</h2>
-  <input type="email" id="email" placeholder="邮箱">
-  <input type="password" id="password" placeholder="密码">
-  <button onclick="login()">登录</button>
-  <button onclick="register()">注册</button>
-  <p id="loginMessage" style="color:red;"></p>
-</div>
-
-<h1>生活与工作管理</h1>
-<div class="container" id="mainContent">
+<div class="container">
 
   <!-- 生活区 -->
-  <div class="card">
+  <div class="section">
     <h2>生活区</h2>
-    <label for="lifeLog">写日志</label>
-    <textarea id="lifeLog" rows="3" placeholder="输入生活日志..."></textarea>
-    <button onclick="addLifeLog()">新增日志</button>
-    <ul id="lifeLogList" class="item-list"></ul>
+    <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
+    <button onclick="addLifeLog()">上传日志</button>
+    <h3>最近5条日志</h3>
+    <ul id="recentLogs"></ul>
+    <button onclick="toggleHistory('logs')">历史记录</button>
+    <ul id="historyLogs" style="display:none"></ul>
 
-    <label for="lifePhoto">上传照片</label>
-    <input type="file" id="lifePhoto" accept="image/*" multiple>
-    <ul id="lifePhotoList" class="item-list"></ul>
+    <h3>上传照片</h3>
+    <input type="file" id="photoInput">
+    <button onclick="uploadPhoto()">上传照片</button>
+    <h3>最近5张照片</h3>
+    <div id="recentPhotos"></div>
+    <button onclick="toggleHistory('photos')">历史记录</button>
+    <div id="historyPhotos" style="display:none"></div>
   </div>
 
   <!-- 工作区 -->
-  <div class="card">
+  <div class="section">
     <h2>工作区</h2>
-    <label for="workDoc">上传文档</label>
-    <input type="file" id="workDoc" multiple>
-    <ul id="workDocList" class="item-list"></ul>
+    <h3>上传文档</h3>
+    <input type="file" id="docInput">
+    <button onclick="uploadDoc()">上传文档</button>
+    <h3>最近5个文档</h3>
+    <div id="recentDocs"></div>
+    <button onclick="toggleHistory('docs')">历史记录</button>
+    <div id="historyDocs" style="display:none"></div>
 
-    <div class="links">
-      <a href="https://chat.openai.com/" target="_blank">ChatGPT</a>
-      <a href="https://grok3.ai/" target="_blank">Grok3</a>
-    </div>
-
-    <button onclick="showHistory()">历史记录</button>
-    <div id="historyContainer">
-      <h3>所有日志</h3>
-      <ul id="historyLogs" class="item-list"></ul>
-      <h3>所有照片</h3>
-      <ul id="historyPhotos" class="item-list"></ul>
-      <h3>所有文档</h3>
-      <ul id="historyDocs" class="item-list"></ul>
-    </div>
+    <h3>外部链接</h3>
+    <a href="https://chat.openai.com" target="_blank">ChatGPT</a><br>
+    <a href="https://grok3.ai" target="_blank">Grok3</a>
   </div>
 
 </div>
 
-<!-- Firebase CDN -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics-compat.js"></script>
+<script type="module">
+// Firebase 初始化
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
-    authDomain: "first-ba4c0.firebaseapp.com",
-    projectId: "first-ba4c0",
-    storageBucket: "first-ba4c0.appspot.com",
-    messagingSenderId: "877853934641",
-    appId: "1:877853934641:web:678fc96d4054762f9fc110",
-    measurementId: "G-DETSMZTR64"
-  };
-  const app = firebase.initializeApp(firebaseConfig);
-  const analytics = firebase.analytics();
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  const storage = firebase.storage();
+const firebaseConfig = {
+  apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
+  authDomain: "first-ba4c0.firebaseapp.com",
+  projectId: "first-ba4c0",
+  storageBucket: "first-ba4c0.appspot.com",
+  messagingSenderId: "877853934641",
+  appId: "1:877853934641:web:678fc96d4054762f9fc110",
+  measurementId: "G-DETSMZTR64"
+};
 
-  // 粒子背景
-  const canvas = document.getElementById('particleCanvas');
-  const ctx = canvas.getContext('2d');
-  let w = canvas.width = window.innerWidth;
-  let h = canvas.height = window.innerHeight;
-  const particles=[];
-  for(let i=0;i<80;i++){particles.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+1,dx:(Math.random()-0.5),dy:(Math.random()-0.5)});}
-  function animate(){ctx.clearRect(0,0,w,h);for(let p of particles){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fill();p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>w)p.dx*=-1;if(p.y<0||p.y>h)p.dy*=-1;}requestAnimationFrame(animate);}
-  animate();
-  window.addEventListener('resize',()=>{w=canvas.width=window.innerWidth;h=canvas.height=window.innerHeight;});
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const auth = getAuth(app);
 
-  // 登录 / 注册
-  const loginBox = document.getElementById('loginBox');
-  const mainContent = document.getElementById('mainContent');
-  const loginMessage = document.getElementById('loginMessage');
+// **登录账号（示例）**
+signInWithEmailAndPassword(auth, '你的邮箱', '你的密码').then(res=>{
+  window.currentUser = res.user;
+  loadRecentLogs();
+  loadPhotos();
+  loadDocs();
+}).catch(err=>{
+  alert('登录失败，请检查邮箱密码: '+err.message);
+});
 
-  function login(){
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('password').value;
-    auth.signInWithEmailAndPassword(email, pass)
-      .then(userCredential=>{showMain(userCredential.user);})
-      .catch(err=>{loginMessage.textContent=err.message;});
-  }
+// ----------------- 生活区 -----------------
+function addLifeLog() {
+  const logBtn = document.querySelector('button[onclick="addLifeLog()"]');
+  const text = document.getElementById('lifeLog').value.trim();
+  if (!text) return alert('日志不能为空');
 
-  function register(){
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('password').value;
-    auth.createUserWithEmailAndPassword(email, pass)
-      .then(userCredential=>{showMain(userCredential.user);})
-      .catch(err=>{loginMessage.textContent=err.message;});
-  }
+  const user = window.currentUser;
+  if (!user) return alert('请先登录');
+  const userId = user.uid;
 
-  function showMain(user){
-    loginBox.style.display='none';
-    mainContent.style.display='flex';
-    window.currentUser = user;
-    loadRecent();
-  }
+  logBtn.style.transition = '0.2s';
+  logBtn.style.transform = 'scale(1.1)';
 
-  // ---------- 生活区日志 ----------
-  const lifeLogList = document.getElementById('lifeLogList');
+  addDoc(collection(db, 'logs'), {
+    uid: userId,
+    text,
+    ts: Date.now()
+  })
+  .then(() => {
+    document.getElementById('lifeLog').value = '';
+    loadRecentLogs();
+    logBtn.style.backgroundColor = '#4CAF50';
+    setTimeout(()=>{ logBtn.style.transform='scale(1)'; },200);
+  })
+  .catch(err => {
+    alert('上传失败: '+err.message);
+    logBtn.style.backgroundColor = '#f44336';
+    setTimeout(()=>{ logBtn.style.backgroundColor = '#4CAF50'; },500);
+  });
+}
+
+async function loadRecentLogs() {
+  const userId = window.currentUser.uid;
+  const recentLogs = document.getElementById('recentLogs');
   const historyLogs = document.getElementById('historyLogs');
-  function addLifeLog(){
-    const text = document.getElementById('lifeLog').value.trim();
-    if(!text) return;
-    const userId = window.currentUser.uid;
-    db.collection('logs').add({uid:userId,text,ts:Date.now()})
-      .then(()=>{document.getElementById('lifeLog').value=''; loadRecent();});
-  }
+  recentLogs.innerHTML = '';
+  historyLogs.innerHTML = '';
 
-  function loadRecent(){
-    const userId = window.currentUser.uid;
-    lifeLogList.innerHTML=''; historyLogs.innerHTML='';
-    db.collection('logs').where('uid','==',userId).orderBy('ts','desc').get().then(snapshot=>{
-      snapshot.forEach((doc,i)=>{
-        const li=document.createElement('li'); li.textContent=doc.data().text;
-        if(i<5) lifeLogList.appendChild(li); // 最近5条
-        historyLogs.appendChild(li.cloneNode(true));
-      });
-    });
-    loadPhotosRecent();
-    loadDocsRecent();
-  }
-
-  // ---------- 生活区照片 ----------
-  const lifePhotoInput = document.getElementById('lifePhoto');
-  const lifePhotoList = document.getElementById('lifePhotoList');
-  const historyPhotos = document.getElementById('historyPhotos');
-
-  lifePhotoInput.addEventListener('change',function(){
-    const files=Array.from(this.files);
-    const userId=window.currentUser.uid;
-    files.forEach(file=>{
-      const storageRef = storage.ref(`${userId}/photos/${file.name}`);
-      storageRef.put(file).then(()=>{
-        storageRef.getDownloadURL().then(url=>{
-          loadRecent();
-        });
-      });
-    });
-    this.value='';
+  const q = query(collection(db, 'logs'), where('uid','==',userId), orderBy('ts','desc'));
+  const snapshot = await getDocs(q);
+  snapshot.docs.forEach((doc,i)=>{
+    const li = document.createElement('li');
+    li.textContent = doc.data().text;
+    if(i<5) recentLogs.appendChild(li);
+    historyLogs.appendChild(li.cloneNode(true));
   });
+}
 
-  function loadPhotosRecent(){
-    const userId=window.currentUser.uid;
-    lifePhotoList.innerHTML=''; historyPhotos.innerHTML='';
-    storage.ref(`${userId}/photos/`).listAll().then(res=>{
-      const items = res.items.reverse(); // 最新在前
-      items.forEach((itemRef,i)=>{
-        itemRef.getDownloadURL().then(url=>{
-          const li=document.createElement('li');
-          li.innerHTML=`<span>${itemRef.name}</span><div><a href="${url}" download="${itemRef.name}">下载</a></div>`;
-          if(i<5) lifePhotoList.appendChild(li);
-          historyPhotos.appendChild(li.cloneNode(true));
-        });
-      });
-    });
+function toggleHistory(type){
+  const el = document.getElementById('history'+type.charAt(0).toUpperCase()+type.slice(1));
+  el.style.display = el.style.display==='none'?'block':'none';
+}
+
+// ----------------- 照片 -----------------
+async function uploadPhoto(){
+  const input = document.getElementById('photoInput');
+  if(input.files.length===0) return alert('请选择照片');
+  const file = input.files[0];
+  const userId = window.currentUser.uid;
+  const btn = document.querySelector('button[onclick="uploadPhoto()"]');
+  btn.style.transition='0.2s'; btn.style.transform='scale(1.1)';
+
+  const photoRef = ref(storage, `${userId}/photos/${file.name}`);
+  uploadBytes(photoRef,file)
+    .then(()=>{ loadPhotos(); btn.style.backgroundColor='#4CAF50'; setTimeout(()=>{btn.style.transform='scale(1)';},200); })
+    .catch(err=>{ alert('上传失败: '+err.message); btn.style.backgroundColor='#f44336'; setTimeout(()=>{btn.style.backgroundColor='#4CAF50';},500); });
+}
+
+async function loadPhotos(){
+  const userId = window.currentUser.uid;
+  const recent = document.getElementById('recentPhotos'); recent.innerHTML='';
+  const history = document.getElementById('historyPhotos'); history.innerHTML='';
+  const listRef = ref(storage, `${userId}/photos`);
+  const res = await listAll(listRef);
+  const urls = [];
+  for(const item of res.items){
+    const url = await getDownloadURL(item);
+    urls.push(url);
+    const img = document.createElement('img');
+    img.src = url;
+    if(urls.length<=5) recent.appendChild(img);
+    history.appendChild(img.cloneNode(true));
   }
+}
 
-  // ---------- 工作区文档 ----------
-  const workDocInput=document.getElementById('workDoc');
-  const workDocList=document.getElementById('workDocList');
-  const historyDocs=document.getElementById('historyDocs');
+// ----------------- 文档 -----------------
+async function uploadDoc(){
+  const input = document.getElementById('docInput');
+  if(input.files.length===0) return alert('请选择文档');
+  const file = input.files[0];
+  const userId = window.currentUser.uid;
+  const btn = document.querySelector('button[onclick="uploadDoc()"]');
+  btn.style.transition='0.2s'; btn.style.transform='scale(1.1)';
 
-  workDocInput.addEventListener('change',function(){
-    const files=Array.from(this.files);
-    const userId=window.currentUser.uid;
-    files.forEach(file=>{
-      const storageRef=storage.ref(`${userId}/docs/${file.name}`);
-      storageRef.put(file).then(()=>{
-        loadRecent();
-      });
-    });
-    this.value='';
-  });
+  const docRef = ref(storage, `${userId}/docs/${file.name}`);
+  uploadBytes(docRef,file)
+    .then(()=>{ loadDocs(); btn.style.backgroundColor='#4CAF50'; setTimeout(()=>{btn.style.transform='scale(1)';},200); })
+    .catch(err=>{ alert('上传失败: '+err.message); btn.style.backgroundColor='#f44336'; setTimeout(()=>{btn.style.backgroundColor='#4CAF50';},500); });
+}
 
-  function loadDocsRecent(){
-    const userId=window.currentUser.uid;
-    workDocList.innerHTML=''; historyDocs.innerHTML='';
-    storage.ref(`${userId}/docs/`).listAll().then(res=>{
-      const items = res.items.reverse();
-      items.forEach((itemRef,i)=>{
-        itemRef.getDownloadURL().then(url=>{
-          const li=document.createElement('li');
-          li.innerHTML=`<span>${itemRef.name}</span><div><a href="${url}" download="${itemRef.name}">下载</a></div>`;
-          if(i<5) workDocList.appendChild(li);
-          historyDocs.appendChild(li.cloneNode(true));
-        });
-      });
-    });
+async function loadDocs(){
+  const userId = window.currentUser.uid;
+  const recent = document.getElementById('recentDocs'); recent.innerHTML='';
+  const history = document.getElementById('historyDocs'); history.innerHTML='';
+  const listRef = ref(storage, `${userId}/docs`);
+  const res = await listAll(listRef);
+  const urls = [];
+  for(const item of res.items){
+    const url = await getDownloadURL(item);
+    urls.push(url);
+    const link = document.createElement('a'); link.href=url; link.target='_blank'; link.textContent=item.name;
+    if(urls.length<=5){ recent.appendChild(link); recent.appendChild(document.createElement('br')); }
+    history.appendChild(link.cloneNode(true)); history.appendChild(document.createElement('br'));
   }
-
-  function showHistory(){
-    const container=document.getElementById('historyContainer');
-    container.style.display = container.style.display==='none'?'block':'none';
-  }
-
+}
 </script>
 </body>
 </html>
