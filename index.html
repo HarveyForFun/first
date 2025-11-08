@@ -54,7 +54,7 @@ button:active { transform: scale(1.05); transition: 0.1s; }
 <script type="module">
 // Firebase 初始化
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -137,7 +137,7 @@ function addLifeLog() {
   });
 }
 
-// 加载最近5条和历史记录
+// 加载最近5条和历史记录（前端排序，不需要索引）
 async function loadRecentLogs() {
   if (!currentUser) return;
   const userId = currentUser.uid;
@@ -146,11 +146,15 @@ async function loadRecentLogs() {
   recentLogs.innerHTML = '';
   historyLogs.innerHTML = '';
 
-  const q = query(collection(db, 'logs'), where('uid','==',userId), orderBy('ts','desc'));
+  const q = query(collection(db, 'logs'), where('uid','==',userId));
   const snapshot = await getDocs(q);
-  snapshot.docs.forEach((doc,i)=>{
+
+  const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  docs.sort((a,b) => b.ts - a.ts); // 最新在前
+
+  docs.forEach((doc,i)=>{
     const li = document.createElement('li');
-    li.textContent = doc.data().text;
+    li.textContent = doc.text;
     if(i<5) recentLogs.appendChild(li);
     historyLogs.appendChild(li.cloneNode(true));
   });
