@@ -34,20 +34,20 @@ button:active { transform: scale(1.05); transition: 0.1s; }
   <h2 id="formTitle">登录</h2>
   <input type="email" id="email" placeholder="邮箱">
   <input type="password" id="password" placeholder="密码">
-  <button id="authButton" onclick="login()">登录</button>
-  <div id="toggleAuth" onclick="toggleAuthForm()">切换到注册</div>
+  <button id="authButton">登录</button>
+  <div id="toggleAuth">切换到注册</div>
 </div>
 
 <!-- 日志主页面 -->
 <div class="container" id="mainPage" style="display:none;">
   <h2>生活日志</h2>
   <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
-  <button onclick="addLifeLog()">上传日志</button>
+  <button id="uploadBtn">上传日志</button>
 
   <h3>最近5条日志</h3>
   <ul id="recentLogs"></ul>
 
-  <button onclick="toggleHistory()">历史记录</button>
+  <button id="historyBtn">历史记录</button>
   <ul id="historyLogs" style="display:none"></ul>
 </div>
 
@@ -72,17 +72,10 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 let isLogin = true;
-
-// 切换登录/注册表单
-function toggleAuthForm(){
-  isLogin = !isLogin;
-  document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
-  document.getElementById('authButton').textContent = isLogin ? '登录' : '注册';
-  document.getElementById('toggleAuth').textContent = isLogin ? '切换到注册' : '切换到登录';
-}
+let currentUser = null;
 
 // 登录/注册函数
-function login(){
+function handleAuth(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
   if(!email || !password) return alert('请输入邮箱和密码');
@@ -91,7 +84,7 @@ function login(){
     // 登录
     signInWithEmailAndPassword(auth, email, password)
       .then(res => {
-        window.currentUser = res.user;
+        currentUser = res.user;
         document.getElementById('authForm').style.display = 'none';
         document.getElementById('mainPage').style.display = 'block';
         loadRecentLogs();
@@ -108,13 +101,21 @@ function login(){
   }
 }
 
+// 切换登录/注册表单
+function toggleAuthForm(){
+  isLogin = !isLogin;
+  document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
+  document.getElementById('authButton').textContent = isLogin ? '登录' : '注册';
+  document.getElementById('toggleAuth').textContent = isLogin ? '切换到注册' : '切换到登录';
+}
+
 // 上传日志
 function addLifeLog() {
-  const logBtn = document.querySelector('button[onclick="addLifeLog()"]');
+  const logBtn = document.getElementById('uploadBtn');
   const text = document.getElementById('lifeLog').value.trim();
   if (!text) return alert('日志不能为空');
 
-  const user = window.currentUser;
+  const user = currentUser;
   if (!user) return alert('请先登录');
   const userId = user.uid;
 
@@ -141,7 +142,7 @@ function addLifeLog() {
 
 // 加载最近5条和历史记录
 async function loadRecentLogs() {
-  const userId = window.currentUser.uid;
+  const userId = currentUser.uid;
   const recentLogs = document.getElementById('recentLogs');
   const historyLogs = document.getElementById('historyLogs');
   recentLogs.innerHTML = '';
@@ -162,6 +163,19 @@ function toggleHistory(){
   const el = document.getElementById('historyLogs');
   el.style.display = el.style.display==='none'?'block':'none';
 }
+
+// ====== 修复模块作用域问题 ======
+window.handleAuth = handleAuth;
+window.toggleAuthForm = toggleAuthForm;
+window.addLifeLog = addLifeLog;
+window.toggleHistory = toggleHistory;
+
+// ====== 绑定按钮事件 ======
+document.getElementById('authButton').addEventListener('click', handleAuth);
+document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
+document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
+document.getElementById('historyBtn').addEventListener('click', toggleHistory);
+
 </script>
 </body>
 </html>
