@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>个人生活与工作空间</title>
+<title>个人日志空间</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -11,68 +11,38 @@ body {
   padding: 0;
 }
 .container {
-  display: flex;
-  justify-content: space-around;
-  padding: 20px;
-}
-.section {
+  max-width: 700px;
+  margin: 50px auto;
   background: rgba(255,255,255,0.9);
   border-radius: 10px;
   padding: 20px;
-  width: 45%;
 }
 h2 { text-align: center; }
-input, textarea, button { margin: 5px 0; width: 100%; }
-#recentPhotos img { width: 100px; margin: 5px; }
-#historyPhotos img { width: 50px; margin: 3px; }
+textarea, button { width: 100%; margin: 5px 0; padding: 10px; }
+ul { list-style: none; padding-left: 0; }
+li { margin: 5px 0; }
+button { cursor: pointer; }
+button:active { transform: scale(1.05); transition: 0.1s; }
 </style>
 </head>
 <body>
 
 <div class="container">
+  <h2>生活日志</h2>
+  <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
+  <button onclick="addLifeLog()">上传日志</button>
 
-  <!-- 生活区 -->
-  <div class="section">
-    <h2>生活区</h2>
-    <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
-    <button onclick="addLifeLog()">上传日志</button>
-    <h3>最近5条日志</h3>
-    <ul id="recentLogs"></ul>
-    <button onclick="toggleHistory('logs')">历史记录</button>
-    <ul id="historyLogs" style="display:none"></ul>
+  <h3>最近5条日志</h3>
+  <ul id="recentLogs"></ul>
 
-    <h3>上传照片</h3>
-    <input type="file" id="photoInput">
-    <button onclick="uploadPhoto()">上传照片</button>
-    <h3>最近5张照片</h3>
-    <div id="recentPhotos"></div>
-    <button onclick="toggleHistory('photos')">历史记录</button>
-    <div id="historyPhotos" style="display:none"></div>
-  </div>
-
-  <!-- 工作区 -->
-  <div class="section">
-    <h2>工作区</h2>
-    <h3>上传文档</h3>
-    <input type="file" id="docInput">
-    <button onclick="uploadDoc()">上传文档</button>
-    <h3>最近5个文档</h3>
-    <div id="recentDocs"></div>
-    <button onclick="toggleHistory('docs')">历史记录</button>
-    <div id="historyDocs" style="display:none"></div>
-
-    <h3>外部链接</h3>
-    <a href="https://chat.openai.com" target="_blank">ChatGPT</a><br>
-    <a href="https://grok3.ai" target="_blank">Grok3</a>
-  </div>
-
+  <button onclick="toggleHistory()">历史记录</button>
+  <ul id="historyLogs" style="display:none"></ul>
 </div>
 
 <script type="module">
 // Firebase 初始化
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -87,20 +57,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 const auth = getAuth(app);
 
-// **登录账号（示例）**
+// 登录（请替换成你的邮箱和密码）
 signInWithEmailAndPassword(auth, '你的邮箱', '你的密码').then(res=>{
   window.currentUser = res.user;
   loadRecentLogs();
-  loadPhotos();
-  loadDocs();
 }).catch(err=>{
   alert('登录失败，请检查邮箱密码: '+err.message);
 });
 
-// ----------------- 生活区 -----------------
+// 上传日志
 function addLifeLog() {
   const logBtn = document.querySelector('button[onclick="addLifeLog()"]');
   const text = document.getElementById('lifeLog').value.trim();
@@ -110,6 +77,7 @@ function addLifeLog() {
   if (!user) return alert('请先登录');
   const userId = user.uid;
 
+  // 上传前按钮闪烁
   logBtn.style.transition = '0.2s';
   logBtn.style.transform = 'scale(1.1)';
 
@@ -131,6 +99,7 @@ function addLifeLog() {
   });
 }
 
+// 加载最近5条和历史记录
 async function loadRecentLogs() {
   const userId = window.currentUser.uid;
   const recentLogs = document.getElementById('recentLogs');
@@ -148,72 +117,10 @@ async function loadRecentLogs() {
   });
 }
 
-function toggleHistory(type){
-  const el = document.getElementById('history'+type.charAt(0).toUpperCase()+type.slice(1));
+// 切换历史记录显示
+function toggleHistory(){
+  const el = document.getElementById('historyLogs');
   el.style.display = el.style.display==='none'?'block':'none';
-}
-
-// ----------------- 照片 -----------------
-async function uploadPhoto(){
-  const input = document.getElementById('photoInput');
-  if(input.files.length===0) return alert('请选择照片');
-  const file = input.files[0];
-  const userId = window.currentUser.uid;
-  const btn = document.querySelector('button[onclick="uploadPhoto()"]');
-  btn.style.transition='0.2s'; btn.style.transform='scale(1.1)';
-
-  const photoRef = ref(storage, `${userId}/photos/${file.name}`);
-  uploadBytes(photoRef,file)
-    .then(()=>{ loadPhotos(); btn.style.backgroundColor='#4CAF50'; setTimeout(()=>{btn.style.transform='scale(1)';},200); })
-    .catch(err=>{ alert('上传失败: '+err.message); btn.style.backgroundColor='#f44336'; setTimeout(()=>{btn.style.backgroundColor='#4CAF50';},500); });
-}
-
-async function loadPhotos(){
-  const userId = window.currentUser.uid;
-  const recent = document.getElementById('recentPhotos'); recent.innerHTML='';
-  const history = document.getElementById('historyPhotos'); history.innerHTML='';
-  const listRef = ref(storage, `${userId}/photos`);
-  const res = await listAll(listRef);
-  const urls = [];
-  for(const item of res.items){
-    const url = await getDownloadURL(item);
-    urls.push(url);
-    const img = document.createElement('img');
-    img.src = url;
-    if(urls.length<=5) recent.appendChild(img);
-    history.appendChild(img.cloneNode(true));
-  }
-}
-
-// ----------------- 文档 -----------------
-async function uploadDoc(){
-  const input = document.getElementById('docInput');
-  if(input.files.length===0) return alert('请选择文档');
-  const file = input.files[0];
-  const userId = window.currentUser.uid;
-  const btn = document.querySelector('button[onclick="uploadDoc()"]');
-  btn.style.transition='0.2s'; btn.style.transform='scale(1.1)';
-
-  const docRef = ref(storage, `${userId}/docs/${file.name}`);
-  uploadBytes(docRef,file)
-    .then(()=>{ loadDocs(); btn.style.backgroundColor='#4CAF50'; setTimeout(()=>{btn.style.transform='scale(1)';},200); })
-    .catch(err=>{ alert('上传失败: '+err.message); btn.style.backgroundColor='#f44336'; setTimeout(()=>{btn.style.backgroundColor='#4CAF50';},500); });
-}
-
-async function loadDocs(){
-  const userId = window.currentUser.uid;
-  const recent = document.getElementById('recentDocs'); recent.innerHTML='';
-  const history = document.getElementById('historyDocs'); history.innerHTML='';
-  const listRef = ref(storage, `${userId}/docs`);
-  const res = await listAll(listRef);
-  const urls = [];
-  for(const item of res.items){
-    const url = await getDownloadURL(item);
-    urls.push(url);
-    const link = document.createElement('a'); link.href=url; link.target='_blank'; link.textContent=item.name;
-    if(urls.length<=5){ recent.appendChild(link); recent.appendChild(document.createElement('br')); }
-    history.appendChild(link.cloneNode(true)); history.appendChild(document.createElement('br'));
-  }
 }
 </script>
 </body>
