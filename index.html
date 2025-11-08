@@ -2,14 +2,15 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>个人日志空间</title>
+<title>日志</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 body {
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  background: url('https://images.unsplash.com/photo-1602524819260-1d556fdf3a8a?auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
+  background-size: cover;
   min-height: 100vh;
   color: #fff;
   overflow-x: hidden;
@@ -24,7 +25,7 @@ body {
 }
 h2 { text-align: center; font-size: 2rem; margin-bottom: 20px; }
 textarea {
-  width: 100%;
+  width: 90%; /* 缩小10% */
   height: 180px;
   padding: 15px;
   font-size: 1.2rem;
@@ -58,6 +59,8 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold; }
 select { background: rgba(255,255,255,0.2); color: #fff; }
 #calendar { margin-bottom: 10px; }
+.stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
+.flex-row { display:flex; gap:10px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -73,13 +76,16 @@ select { background: rgba(255,255,255,0.2); color: #fff; }
 
 <!-- 日志主页面 -->
 <div class="container" id="mainPage" style="display:none;">
-  <h2>生活日志</h2>
+  <h2>日志</h2>
+
+  <!-- 注销 -->
+  <button id="logoutBtn" style="background:#f44336;">注销</button>
 
   <!-- 日历选择 -->
   <input type="text" id="calendar" placeholder="选择日期">
-  
-  <!-- 字体和字号选择 -->
-  <div style="display:flex; gap:10px; margin-bottom:10px;">
+
+  <!-- 字体、字号、心情、天气 -->
+  <div class="flex-row" style="margin-bottom:10px;">
     <select id="fontSelect">
       <option value="Georgia, serif">Georgia</option>
       <option value="'Segoe UI', sans-serif">Segoe UI</option>
@@ -91,6 +97,20 @@ select { background: rgba(255,255,255,0.2); color: #fff; }
       <option value="1.2rem">18px</option>
       <option value="1.4rem">20px</option>
       <option value="1.6rem">22px</option>
+    </select>
+    <select id="moodSelect">
+      <option value="😃 开心">😃 开心</option>
+      <option value="😞 难受">😞 难受</option>
+      <option value="😐 平静">😐 平静</option>
+      <option value="😡 生气">😡 生气</option>
+      <option value="😴 疲惫">😴 疲惫</option>
+    </select>
+    <select id="weatherSelect">
+      <option value="☀️ 晴天">☀️ 晴天</option>
+      <option value="☁️ 阴天">☁️ 阴天</option>
+      <option value="🌧️ 雨天">🌧️ 雨天</option>
+      <option value="⛄ 雪天">⛄ 雪天</option>
+      <option value="🌫️ 雾天">🌫️ 雾天</option>
     </select>
   </div>
 
@@ -105,6 +125,13 @@ select { background: rgba(255,255,255,0.2); color: #fff; }
 
   <h3>当天日志</h3>
   <ul id="dayLogs"></ul>
+
+  <div class="stats">
+    <h3>统计</h3>
+    <button id="monthStatsBtn">按月统计</button>
+    <button id="yearStatsBtn">按年统计</button>
+    <div id="statsResult"></div>
+  </div>
 </div>
 
 <script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -112,7 +139,7 @@ select { background: rgba(255,255,255,0.2); color: #fff; }
 // Firebase 初始化
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
@@ -132,7 +159,7 @@ let isLogin = true;
 let currentUser = null;
 let allLogs = [];
 
-// 登录/注册函数
+// 登录/注册
 function handleAuth(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -140,24 +167,15 @@ function handleAuth(){
 
   if(isLogin){
     signInWithEmailAndPassword(auth, email, password)
-      .then(res => {
-        currentUser = res.user;
-        document.getElementById('authForm').style.display = 'none';
-        document.getElementById('mainPage').style.display = 'block';
-        loadAllLogs();
-      })
+      .then(res => { currentUser = res.user; })
       .catch(err => alert('登录失败: '+err.message));
   } else {
     createUserWithEmailAndPassword(auth, email, password)
-      .then(res => {
-        alert('注册成功！请登录');
-        toggleAuthForm();
-      })
+      .then(res => { alert('注册成功！请登录'); toggleAuthForm(); })
       .catch(err => alert('注册失败: '+err.message));
   }
 }
 
-// 切换登录/注册表单
 function toggleAuthForm(){
   isLogin = !isLogin;
   document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
@@ -167,32 +185,25 @@ function toggleAuthForm(){
 
 // 上传日志
 function addLifeLog() {
-  const logBtn = document.getElementById('uploadBtn');
   const text = document.getElementById('lifeLog').value.trim();
   if (!text) return alert('日志不能为空');
-
   if (!currentUser) return alert('请先登录');
-  const userId = currentUser.uid;
 
-  logBtn.style.transition = '0.2s';
-  logBtn.style.transform = 'scale(1.1)';
+  const mood = document.getElementById('moodSelect').value;
+  const weather = document.getElementById('weatherSelect').value;
 
   addDoc(collection(db, 'logs'), {
-    uid: userId,
+    uid: currentUser.uid,
     text,
+    mood,
+    weather,
     ts: Date.now()
   })
-  .then(() => {
+  .then(()=> {
     document.getElementById('lifeLog').value = '';
     loadAllLogs();
-    logBtn.style.backgroundColor = '#4CAF50';
-    setTimeout(()=>{ logBtn.style.transform='scale(1)'; },200);
   })
-  .catch(err => {
-    alert('上传失败: '+err.message);
-    logBtn.style.backgroundColor = '#f44336';
-    setTimeout(()=>{ logBtn.style.backgroundColor = '#4CAF50'; },500);
-  });
+  .catch(err => alert('上传失败: '+err.message));
 }
 
 // 加载所有日志
@@ -209,40 +220,63 @@ async function loadAllLogs() {
   const q = query(collection(db, 'logs'), where('uid','==',userId));
   const snapshot = await getDocs(q);
   allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  allLogs.sort((a,b) => b.ts - a.ts); // 最新在前
+  allLogs.sort((a,b) => b.ts - a.ts);
 
   allLogs.forEach((doc,i)=>{
     const li = document.createElement('li');
-    li.textContent = doc.text;
+    li.textContent = `${doc.text} [${doc.mood} ${doc.weather}]`;
     if(i<5) recentLogs.appendChild(li);
     historyLogs.appendChild(li.cloneNode(true));
   });
 
-  // 默认显示今天日志
   showDayLogs(new Date());
 }
 
-// 显示指定日期日志
+// 显示指定日期日志 & 自动填充心情/天气
 function showDayLogs(date) {
   const dayLogs = document.getElementById('dayLogs');
   dayLogs.innerHTML = '';
-  const start = new Date(date);
-  start.setHours(0,0,0,0);
-  const end = new Date(date);
-  end.setHours(23,59,59,999);
+  const start = new Date(date); start.setHours(0,0,0,0);
+  const end = new Date(date); end.setHours(23,59,59,999);
 
   const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
+
+  if(logs.length){
+    const latest = logs[logs.length - 1];
+    document.getElementById('moodSelect').value = latest.mood;
+    document.getElementById('weatherSelect').value = latest.weather;
+  }
+
   logs.forEach(d=>{
     const li = document.createElement('li');
-    li.textContent = d.text;
+    li.textContent = `${d.text} [${d.mood} ${d.weather}]`;
     dayLogs.appendChild(li);
   });
 }
 
-// 切换历史记录显示
+// 历史记录切换
 function toggleHistory(){
   const el = document.getElementById('historyLogs');
   el.style.display = el.style.display==='none'?'block':'none';
+}
+
+// 统计
+function showStats(type) {
+  const result = document.getElementById('statsResult');
+  result.innerHTML = '';
+  const stats = {};
+  allLogs.forEach(d=>{
+    const date = new Date(d.ts);
+    let key = type==='month' ? `${date.getFullYear()}-${date.getMonth()+1}` : `${date.getFullYear()}`;
+    if(!stats[key]) stats[key] = {mood:{}, weather:{}};
+    stats[key].mood[d.mood] = (stats[key].mood[d.mood]||0)+1;
+    stats[key].weather[d.weather] = (stats[key].weather[d.weather]||0)+1;
+  });
+  for(const k in stats){
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${k}</strong><br>Mood: ${JSON.stringify(stats[k].mood)}<br>Weather: ${JSON.stringify(stats[k].weather)}`;
+    result.appendChild(div);
+  }
 }
 
 // 字体选择
@@ -258,8 +292,11 @@ document.getElementById('authButton').addEventListener('click', handleAuth);
 document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
 document.getElementById('historyBtn').addEventListener('click', toggleHistory);
+document.getElementById('monthStatsBtn').addEventListener('click', ()=>showStats('month'));
+document.getElementById('yearStatsBtn').addEventListener('click', ()=>showStats('year'));
+document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
 
-// 初始化 flatpickr 日历
+// flatpickr 日历
 flatpickr("#calendar", {
   dateFormat: "Y-m-d",
   defaultDate: new Date(),
@@ -267,6 +304,20 @@ flatpickr("#calendar", {
   maxDate: new Date(),
   onChange: function(selectedDates){
     if(selectedDates.length) showDayLogs(selectedDates[0]);
+  }
+});
+
+// 保持登录状态
+onAuthStateChanged(auth, user => {
+  if(user){
+    currentUser = user;
+    document.getElementById('authForm').style.display = 'none';
+    document.getElementById('mainPage').style.display = 'block';
+    loadAllLogs();
+  } else {
+    currentUser = null;
+    document.getElementById('authForm').style.display = 'block';
+    document.getElementById('mainPage').style.display = 'none';
   }
 });
 </script>
