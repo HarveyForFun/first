@@ -1,148 +1,229 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的上传网页</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-    }
-    .section {
-      margin-bottom: 30px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-    input[type="file"], textarea {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    .links a {
-      display: inline-block;
-      margin-right: 20px;
-      color: #1a73e8;
-      text-decoration: none;
-      font-weight: bold;
-    }
-    .links a:hover {
-      text-decoration: underline;
-    }
-    img {
-      max-width: 100%;
-      margin-top: 10px;
-      border-radius: 8px;
-    }
-    pre {
-      background: #eee;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-    .download-link {
-      display: block;
-      margin-top: 8px;
-      color: #d2691e;
-      text-decoration: none;
-      font-weight: bold;
-    }
-    .download-link:hover {
-      text-decoration: underline;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生活与工作管理（Firebase版）</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body,html{margin:0;padding:0;font-family:'Roboto',sans-serif;height:100%;overflow-x:hidden;}
+  body{background:linear-gradient(270deg,#ff9a9e,#fad0c4,#a1c4fd,#c2e9fb);background-size:800% 800%;animation: gradientBG 20s ease infinite;position:relative;}
+  @keyframes gradientBG{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+  #particleCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+  h1{text-align:center;color:#fff;margin:20px 0 40px 0;text-shadow:2px 2px 5px rgba(0,0,0,0.4);position:relative;z-index:1;}
+  .container{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;position:relative;z-index:1;display:none;}
+  .card{background:rgba(255,255,255,0.95);padding:20px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.1);flex:1 1 320px;max-width:500px;}
+  .card h2{margin-top:0;color:#555;margin-bottom:15px;border-bottom:2px solid #4CAF50;padding-bottom:5px;}
+  label{display:block;margin-bottom:6px;font-weight:600;}
+  input,textarea,button{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid #ccc;box-sizing:border-box;}
+  button{background-color:#4CAF50;color:white;border:none;border-radius:6px;cursor:pointer;}
+  button:hover{background-color:#45a049;}
+  .links a{display:inline-block;margin-right:15px;color:#1a73e8;text-decoration:none;font-weight:bold;}
+  .links a:hover{text-decoration:underline;}
+  .item-list{list-style:none;padding:0;margin:0;}
+  .item-list li{margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+  .item-list li button{background-color:#f44336;margin-left:5px;}
+  .item-list li button:hover{background-color:#d32f2f;}
+  #loginBox{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.95);padding:30px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.2);z-index:2;}
+</style>
 </head>
 <body>
-  <h1>我的上传网页</h1>
-  <div class="container">
+<canvas id="particleCanvas"></canvas>
 
-    <!-- 上传照片 -->
-    <div class="section">
-      <label for="photoUpload">上传照片</label>
-      <input type="file" id="photoUpload" accept="image/*">
-      <div id="photoPreview"></div>
-      <a id="photoDownload" class="download-link" href="#" download="photo.png" style="display:none;">下载照片</a>
-    </div>
+<div id="loginBox">
+  <h2>登录 / 注册</h2>
+  <input type="email" id="email" placeholder="邮箱">
+  <input type="password" id="password" placeholder="密码">
+  <button onclick="login()">登录</button>
+  <button onclick="register()">注册</button>
+  <p id="loginMessage" style="color:red;"></p>
+</div>
 
-    <!-- 上传日志 -->
-    <div class="section">
-      <label for="logUpload">上传日志</label>
-      <textarea id="logUpload" rows="5" placeholder="在这里输入日志内容..."></textarea>
-      <button onclick="saveLog()">保存日志</button>
-      <pre id="logDisplay"></pre>
-      <a id="logDownload" class="download-link" href="#" download="log.txt" style="display:none;">下载日志</a>
-    </div>
+<h1>生活与工作管理</h1>
+<div class="container" id="mainContent">
 
-    <!-- 链接部分 -->
-    <div class="section links">
+  <!-- 生活区 -->
+  <div class="card">
+    <h2>生活区</h2>
+    <label for="lifeLog">写日志</label>
+    <textarea id="lifeLog" rows="3" placeholder="输入生活日志..."></textarea>
+    <button onclick="addLifeLog()">新增日志</button>
+    <ul id="lifeLogList" class="item-list"></ul>
+
+    <label for="lifePhoto">上传照片</label>
+    <input type="file" id="lifePhoto" accept="image/*" multiple>
+    <ul id="lifePhotoList" class="item-list"></ul>
+  </div>
+
+  <!-- 工作区 -->
+  <div class="card">
+    <h2>工作区</h2>
+    <label for="workDoc">上传文档</label>
+    <input type="file" id="workDoc" multiple>
+    <ul id="workDocList" class="item-list"></ul>
+
+    <div class="links">
       <a href="https://chat.openai.com/" target="_blank">ChatGPT</a>
       <a href="https://grok3.ai/" target="_blank">Grok3</a>
     </div>
   </div>
 
-  <script>
-    // 照片预览与下载
-    const photoInput = document.getElementById('photoUpload');
-    const photoPreview = document.getElementById('photoPreview');
-    const photoDownload = document.getElementById('photoDownload');
+</div>
 
-    photoInput.addEventListener('change', function() {
-      const file = this.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const imgData = e.target.result;
-          photoPreview.innerHTML = `<img src="${imgData}" alt="预览图片">`;
-          photoDownload.href = imgData;
-          photoDownload.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
-      }
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics-compat.js"></script>
+
+<script>
+  // ---------- 配置 Firebase ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
+    authDomain: "first-ba4c0.firebaseapp.com",
+    projectId: "first-ba4c0",
+    storageBucket: "first-ba4c0.appspot.com",
+    messagingSenderId: "877853934641",
+    appId: "1:877853934641:web:678fc96d4054762f9fc110",
+    measurementId: "G-DETSMZTR64"
+  };
+  const app = firebase.initializeApp(firebaseConfig);
+  const analytics = firebase.analytics();
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+
+  // ---------- 粒子背景 ----------
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  let w = canvas.width = window.innerWidth;
+  let h = canvas.height = window.innerHeight;
+  const particles=[];
+  for(let i=0;i<80;i++){particles.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+1,dx:(Math.random()-0.5),dy:(Math.random()-0.5)});}
+  function animate(){ctx.clearRect(0,0,w,h);for(let p of particles){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fill();p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>w)p.dx*=-1;if(p.y<0||p.y>h)p.dy*=-1;}requestAnimationFrame(animate);}
+  animate();
+  window.addEventListener('resize',()=>{w=canvas.width=window.innerWidth;h=canvas.height=window.innerHeight;});
+
+  // ---------- 登录 / 注册 ----------
+  const loginBox = document.getElementById('loginBox');
+  const mainContent = document.getElementById('mainContent');
+  const loginMessage = document.getElementById('loginMessage');
+
+  function login(){
+    const email = document.getElementById('email').value;
+    const pass = document.getElementById('password').value;
+    auth.signInWithEmailAndPassword(email, pass)
+      .then(userCredential=>{showMain(userCredential.user);})
+      .catch(err=>{loginMessage.textContent=err.message;});
+  }
+
+  function register(){
+    const email = document.getElementById('email').value;
+    const pass = document.getElementById('password').value;
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(userCredential=>{showMain(userCredential.user);})
+      .catch(err=>{loginMessage.textContent=err.message;});
+  }
+
+  function showMain(user){
+    loginBox.style.display='none';
+    mainContent.style.display='flex';
+    window.currentUser = user;
+    loadLogs();
+    loadPhotos();
+    loadDocs();
+  }
+
+  // ---------- 生活区日志 ----------
+  const lifeLogList = document.getElementById('lifeLogList');
+  function addLifeLog(){
+    const text = document.getElementById('lifeLog').value.trim();
+    if(!text) return;
+    const userId = window.currentUser.uid;
+    db.collection('logs').add({uid:userId,text,ts:Date.now()})
+      .then(docRef=>{
+        const li=document.createElement('li');
+        li.textContent=text;
+        lifeLogList.appendChild(li);
+        document.getElementById('lifeLog').value='';
+      });
+  }
+
+  function loadLogs(){
+    const userId = window.currentUser.uid;
+    db.collection('logs').where('uid','==',userId).orderBy('ts').get().then(snapshot=>{
+      snapshot.forEach(doc=>{
+        const li=document.createElement('li');
+        li.textContent = doc.data().text;
+        lifeLogList.appendChild(li);
+      });
     });
+  }
 
-    // 保存日志到显示区和下载链接
-    function saveLog() {
-      const logContent = document.getElementById('logUpload').value;
-      document.getElementById('logDisplay').textContent = logContent;
+  // ---------- 生活区照片 ----------
+  const lifePhotoInput = document.getElementById('lifePhoto');
+  const lifePhotoList = document.getElementById('lifePhotoList');
+  lifePhotoInput.addEventListener('change',function(){
+    const files=Array.from(this.files);
+    const userId=window.currentUser.uid;
+    files.forEach(file=>{
+      const storageRef = storage.ref(`${userId}/photos/${file.name}`);
+      storageRef.put(file).then(()=>{
+        storageRef.getDownloadURL().then(url=>{
+          const li=document.createElement('li');
+          li.innerHTML=`<span>${file.name}</span><div><a href="${url}" download="${file.name}" class="download-link">下载</a></div>`;
+          lifePhotoList.appendChild(li);
+        });
+      });
+    });
+    this.value='';
+  });
 
-      const blob = new Blob([logContent], {type: 'text/plain'});
-      const logUrl = URL.createObjectURL(blob);
-      const logDownload = document.getElementById('logDownload');
-      logDownload.href = logUrl;
-      logDownload.style.display = 'block';
+  function loadPhotos(){
+    const userId=window.currentUser.uid;
+    storage.ref(`${userId}/photos/`).listAll().then(res=>{
+      res.items.forEach(itemRef=>{
+        itemRef.getDownloadURL().then(url=>{
+          const li=document.createElement('li');
+          li.innerHTML=`<span>${itemRef.name}</span><div><a href="${url}" download="${itemRef.name}" class="download-link">下载</a></div>`;
+          lifePhotoList.appendChild(li);
+        });
+      });
+    });
+  }
 
-      alert('日志已保存，可在下方下载');
-    }
-  </script>
+  // ---------- 工作区文档 ----------
+  const workDocInput=document.getElementById('workDoc');
+  const workDocList=document.getElementById('workDocList');
+  workDocInput.addEventListener('change',function(){
+    const files=Array.from(this.files);
+    const userId=window.currentUser.uid;
+    files.forEach(file=>{
+      const storageRef=storage.ref(`${userId}/docs/${file.name}`);
+      storageRef.put(file).then(()=>{
+        storageRef.getDownloadURL().then(url=>{
+          const li=document.createElement('li');
+          li.innerHTML=`<span>${file.name}</span><div><a href="${url}" download="${file.name}" class="download-link">下载</a></div>`;
+          workDocList.appendChild(li);
+        });
+      });
+    });
+    this.value='';
+  });
+
+  function loadDocs(){
+    const userId=window.currentUser.uid;
+    storage.ref(`${userId}/docs/`).listAll().then(res=>{
+      res.items.forEach(itemRef=>{
+        itemRef.getDownloadURL().then(url=>{
+          const li=document.createElement('li');
+          li.innerHTML=`<span>${itemRef.name}</span><div><a href="${url}" download="${itemRef.name}" class="download-link">下载</a></div>`;
+          workDocList.appendChild(li);
+        });
+      });
+    });
+  }
+</script>
 </body>
 </html>
