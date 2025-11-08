@@ -9,24 +9,30 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: url('https://images.unsplash.com/photo-1602524819260-1d556fdf3a8a?auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
-  background-size: cover;
+  background: linear-gradient(135deg, #0a1a40, #001f54);
   min-height: 100vh;
   color: #fff;
   overflow-x: hidden;
 }
 .container {
-  max-width: 850px;
-  margin: 50px auto;
-  background: rgba(0,0,0,0.7);
+  max-width: 1200px;
+  margin: 20px auto;
+  background: rgba(0,0,0,0.6);
   border-radius: 15px;
-  padding: 25px;
+  padding: 20px;
+  display: flex;
+  gap: 20px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
-h2 { text-align: center; font-size: 2rem; margin-bottom: 20px; }
+.left, .center, .right {
+  padding: 10px;
+}
+.left, .right { width: 25%; }
+.center { width: 50%; display:flex; flex-direction:column; gap:10px; }
+h2 { text-align: center; margin-bottom: 15px; }
 textarea {
-  width: 90%; /* 缩小10% */
-  height: 180px;
+  width: 100%;
+  height: 200px;
   padding: 15px;
   font-size: 1.2rem;
   font-family: 'Georgia', serif;
@@ -38,8 +44,8 @@ textarea {
 }
 input, select, button {
   width: 100%;
-  margin: 8px 0;
-  padding: 12px;
+  margin: 5px 0;
+  padding: 10px;
   border-radius: 8px;
   border: none;
   outline: none;
@@ -58,9 +64,8 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #authForm { max-width: 400px; margin: 80px auto; background: rgba(0,0,0,0.75); padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.5);}
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold; }
 select { background: rgba(255,255,255,0.2); color: #fff; }
-#calendar { margin-bottom: 10px; }
+.flex-col { display:flex; flex-direction:column; gap:5px; }
 .stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
-.flex-row { display:flex; gap:10px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -76,64 +81,86 @@ select { background: rgba(255,255,255,0.2); color: #fff; }
 
 <!-- 日志主页面 -->
 <div class="container" id="mainPage" style="display:none;">
-  <h2>日志</h2>
 
-  <!-- 注销 -->
-  <button id="logoutBtn" style="background:#f44336;">注销</button>
+  <!-- 左侧栏 -->
+  <div class="left">
+    <h3>选择日期</h3>
+    <input type="text" id="calendar" placeholder="选择日期">
 
-  <!-- 日历选择 -->
-  <input type="text" id="calendar" placeholder="选择日期">
+    <div class="flex-col">
+      <label>字体</label>
+      <select id="fontSelect">
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Segoe UI', sans-serif">Segoe UI</option>
+        <option value="Courier New, monospace">Courier New</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Times New Roman, serif">Times New Roman</option>
+      </select>
+    </div>
 
-  <!-- 字体、字号、心情、天气 -->
-  <div class="flex-row" style="margin-bottom:10px;">
-    <select id="fontSelect">
-      <option value="Georgia, serif">Georgia</option>
-      <option value="'Segoe UI', sans-serif">Segoe UI</option>
-      <option value="Courier New, monospace">Courier New</option>
-      <option value="Arial, sans-serif">Arial</option>
-    </select>
-    <select id="fontSizeSelect">
-      <option value="1rem">16px</option>
-      <option value="1.2rem">18px</option>
-      <option value="1.4rem">20px</option>
-      <option value="1.6rem">22px</option>
-    </select>
-    <select id="moodSelect">
-      <option value="😃 开心">😃 开心</option>
-      <option value="😞 难受">😞 难受</option>
-      <option value="😐 平静">😐 平静</option>
-      <option value="😡 生气">😡 生气</option>
-      <option value="😴 疲惫">😴 疲惫</option>
-    </select>
-    <select id="weatherSelect">
-      <option value="☀️ 晴天">☀️ 晴天</option>
-      <option value="☁️ 阴天">☁️ 阴天</option>
-      <option value="🌧️ 雨天">🌧️ 雨天</option>
-      <option value="⛄ 雪天">⛄ 雪天</option>
-      <option value="🌫️ 雾天">🌫️ 雾天</option>
-    </select>
+    <div class="flex-col">
+      <label>字号</label>
+      <select id="fontSizeSelect">
+        <option value="1rem">16px</option>
+        <option value="1.2rem">18px</option>
+        <option value="1.4rem">20px</option>
+        <option value="1.6rem">22px</option>
+        <option value="1.8rem">24px</option>
+      </select>
+    </div>
+
+    <div class="flex-col">
+      <label>心情</label>
+      <select id="moodSelect">
+        <option value="😃 开心">😃 开心</option>
+        <option value="😞 难受">😞 难受</option>
+        <option value="😐 平静">😐 平静</option>
+        <option value="😡 生气">😡 生气</option>
+        <option value="😴 疲惫">😴 疲惫</option>
+      </select>
+    </div>
+
+    <div class="flex-col">
+      <label>天气</label>
+      <select id="weatherSelect">
+        <option value="☀️ 晴天">☀️ 晴天</option>
+        <option value="☁️ 阴天">☁️ 阴天</option>
+        <option value="🌧️ 雨天">🌧️ 雨天</option>
+        <option value="⛄ 雪天">⛄ 雪天</option>
+        <option value="🌫️ 雾天">🌫️ 雾天</option>
+      </select>
+    </div>
+
+    <button id="logoutBtn" style="background:#f44336;">注销</button>
   </div>
 
-  <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
-  <button id="uploadBtn">上传日志</button>
+  <!-- 中间栏 -->
+  <div class="center">
+    <h2>日志</h2>
+    <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
+    <button id="uploadBtn">上传日志</button>
 
-  <h3>最近5条日志</h3>
-  <ul id="recentLogs"></ul>
-
-  <button id="historyBtn">历史记录</button>
-  <ul id="historyLogs" style="display:none"></ul>
-
-  <h3>当天日志</h3>
-  <ul id="dayLogs"></ul>
-
-  <div class="stats">
-    <h3>统计</h3>
-    <button id="monthStatsBtn">按月统计</button>
-    <button id="yearStatsBtn">按年统计</button>
-    <div id="statsResult"></div>
+    <h3>当天日志</h3>
+    <ul id="dayLogs"></ul>
   </div>
+
+  <!-- 右侧栏 -->
+  <div class="right">
+    <h3>最近5条日志</h3>
+    <ul id="recentLogs"></ul>
+
+    <button id="historyBtn">历史记录</button>
+    <ul id="historyLogs" style="display:none"></ul>
+
+    <div class="stats">
+      <h3>天气统计</h3>
+      <canvas id="weatherChart"></canvas>
+    </div>
+  </div>
+
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script type="module">
 // Firebase 初始化
@@ -158,6 +185,7 @@ const auth = getAuth(app);
 let isLogin = true;
 let currentUser = null;
 let allLogs = [];
+let weatherChart = null;
 
 // 登录/注册
 function handleAuth(){
@@ -206,7 +234,7 @@ function addLifeLog() {
   .catch(err => alert('上传失败: '+err.message));
 }
 
-// 加载所有日志
+// 加载日志
 async function loadAllLogs() {
   if (!currentUser) return;
   const userId = currentUser.uid;
@@ -230,9 +258,10 @@ async function loadAllLogs() {
   });
 
   showDayLogs(new Date());
+  updateWeatherChart();
 }
 
-// 显示指定日期日志 & 自动填充心情/天气
+// 显示当天日志 & 自动填充心情/天气
 function showDayLogs(date) {
   const dayLogs = document.getElementById('dayLogs');
   dayLogs.innerHTML = '';
@@ -242,7 +271,7 @@ function showDayLogs(date) {
   const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
 
   if(logs.length){
-    const latest = logs[logs.length - 1];
+    const latest = logs[0]; // 最新一条
     document.getElementById('moodSelect').value = latest.mood;
     document.getElementById('weatherSelect').value = latest.weather;
   }
@@ -260,23 +289,22 @@ function toggleHistory(){
   el.style.display = el.style.display==='none'?'block':'none';
 }
 
-// 统计
-function showStats(type) {
-  const result = document.getElementById('statsResult');
-  result.innerHTML = '';
-  const stats = {};
+// 更新天气饼图
+function updateWeatherChart(){
+  const weatherCounts = {};
   allLogs.forEach(d=>{
-    const date = new Date(d.ts);
-    let key = type==='month' ? `${date.getFullYear()}-${date.getMonth()+1}` : `${date.getFullYear()}`;
-    if(!stats[key]) stats[key] = {mood:{}, weather:{}};
-    stats[key].mood[d.mood] = (stats[key].mood[d.mood]||0)+1;
-    stats[key].weather[d.weather] = (stats[key].weather[d.weather]||0)+1;
+    weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1;
   });
-  for(const k in stats){
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${k}</strong><br>Mood: ${JSON.stringify(stats[k].mood)}<br>Weather: ${JSON.stringify(stats[k].weather)}`;
-    result.appendChild(div);
-  }
+  const labels = Object.keys(weatherCounts);
+  const data = Object.values(weatherCounts);
+
+  const ctx = document.getElementById('weatherChart').getContext('2d');
+  if(weatherChart) weatherChart.destroy();
+  weatherChart = new Chart(ctx, {
+    type: 'pie',
+    data: { labels, datasets:[{ data, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
+    options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
+  });
 }
 
 // 字体选择
@@ -292,8 +320,6 @@ document.getElementById('authButton').addEventListener('click', handleAuth);
 document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
 document.getElementById('historyBtn').addEventListener('click', toggleHistory);
-document.getElementById('monthStatsBtn').addEventListener('click', ()=>showStats('month'));
-document.getElementById('yearStatsBtn').addEventListener('click', ()=>showStats('year'));
 document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
 
 // flatpickr 日历
@@ -312,7 +338,7 @@ onAuthStateChanged(auth, user => {
   if(user){
     currentUser = user;
     document.getElementById('authForm').style.display = 'none';
-    document.getElementById('mainPage').style.display = 'block';
+    document.getElementById('mainPage').style.display = 'flex';
     loadAllLogs();
   } else {
     currentUser = null;
@@ -321,6 +347,5 @@ onAuthStateChanged(auth, user => {
   }
 });
 </script>
-
 </body>
 </html>
