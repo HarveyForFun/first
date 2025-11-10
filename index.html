@@ -1,616 +1,110 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>日志</title>
-
-<!-- flatpickr 样式 -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
-<style>
-  :root{
-    --card-bg: rgba(255,255,255,0.04);
-    --panel-bg: rgba(0,0,0,0.45);
-    --select-bg: rgba(48,56,64,0.95);
-    --accent: linear-gradient(45deg,#7c5cff,#ff6ec4);
-  }
-  html,body{height:100%; margin:0; font-family: "Segoe UI", Roboto, "Microsoft YaHei", Arial, sans-serif; color:#fff;}
-  /* 深蓝-黑 渐变背景 */
-  body{
-    background: linear-gradient(180deg,#061237 0%, #001433 50%, #000814 100%);
-    overflow:hidden;
-  }
-
-  /* 流星 canvas 覆盖全屏 */
-  #meteorCanvas{
-    position:fixed;
-    inset:0;
-    z-index:0;
-    pointer-events:none;
-  }
-
-  /* 主容器（在画布上方）*/
-  .wrap{
-    position:relative;
-    z-index:2;
-    max-width:1200px;
-    margin:28px auto;
-    padding:18px;
-  }
-
-  /* 卡片式容器 */
-  .card{
-    background:var(--panel-bg);
-    border-radius:14px;
-    padding:18px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    display:flex;
-    gap:18px;
-    align-items:flex-start;
-  }
-
-  /* 两栏布局：左 60%，右 40% */
-  .left{flex:0 0 60%;}
-  .right{flex:0 0 40%;}
-
-  h1{margin:4px 0 12px; text-align:center; font-weight:600; font-size:1.6rem;}
-  h2{margin:8px 0 10px; font-size:1.1rem;}
-
-  /* 控件样式 */
-  .ctrl{display:flex; flex-direction:column; gap:10px;}
-  label{font-size:0.95rem; color:#dbe8ff;}
-  input[type="text"].date{
-    width:92%;
-    margin:0 auto;
-    display:block;
-    padding:10px 12px;
-    border-radius:8px;
-    border:none;
-    background:rgba(255,255,255,0.04);
-    color:#fff;
-    text-align:center;
-    font-size:1rem;
-  }
-
-  select, input[type="text"], textarea, button {
-    background:var(--select-bg);
-    color:#fff;
-    border: none;
-    border-radius:8px;
-    padding:10px;
-    font-size:0.98rem;
-    outline: none;
-  }
-
-  /* 让下拉选项也用深灰背景（多数现代浏览器支持） */
-  select option{
-    background: #32383f;
-    color: #fff;
-  }
-
-  select:focus, textarea:focus, input:focus { box-shadow: 0 0 0 3px rgba(125,100,255,0.12); }
-
-  /* 日志编辑框更大 */
-  textarea#lifeLog{
-    width:100%;
-    height:250px;
-    resize:vertical;
-    font-size:1rem;
-    line-height:1.6;
-  }
-
-  .btn{
-    cursor:pointer;
-    background:var(--accent);
-    font-weight:600;
-    color:#fff;
-    transition: transform .12s ease;
-  }
-  .btn:hover{ transform: translateY(-2px); }
-
-  /* 右侧列表与图表 */
-  .recent-list { max-height:220px; overflow:auto; margin-top:6px; padding:6px; background:var(--card-bg); border-radius:8px; }
-  .recent-list li{ padding:8px; margin:6px 0; background:rgba(255,255,255,0.02); border-radius:6px; font-size:0.95rem; }
-
-  .small-row{ display:flex; gap:8px; align-items:center; }
-  .small-row > * { flex:1; }
-
-  /* 统计区卡片美化 */
-  .stat-panel{ margin-top:12px; padding:12px; background:rgba(255,255,255,0.03); border-radius:10px; }
-
-  /* 响应式（窄屏堆叠） */
-  @media (max-width:980px){
-    .card{flex-direction:column;}
-    .left,.right{flex:1 1 auto; width:100%;}
-    .recent-list{max-height:160px;}
-    textarea#lifeLog{height:200px;}
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>心情与天气日志面板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-
-<!-- 流星 canvas -->
-<canvas id="meteorCanvas"></canvas>
-
-<div class="wrap">
-  <div class="card" role="main" aria-label="日志主界面">
-    <!-- 左侧：控件 + 编辑 -->
-    <div class="left">
-      <h1>日志</h1>
-
-      <div class="ctrl">
-        <label for="calendar">选择日期</label>
-        <input id="calendar" class="date" type="text" placeholder="点击选择日期">
-
-        <div class="small-row">
-          <div>
-            <label for="fontSelect">字体</label>
-            <select id="fontSelect" title="选择字体">
-              <option value="Microsoft YaHei, 'Segoe UI', Arial">微软雅黑</option>
-              <option value="SimSun, serif">宋体</option>
-              <option value="Georgia, serif">Georgia</option>
-              <option value="'Segoe UI', sans-serif">Segoe UI</option>
-              <option value="Arial, sans-serif">Arial</option>
-              <option value="'Times New Roman', serif">Times New Roman</option>
-              <option value="'Courier New', monospace">Courier New</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="fontSizeSelect">字号</label>
-            <select id="fontSizeSelect" title="选择字号">
-              <option value="0.75rem">12px</option>
-              <option value="0.8125rem">13px</option>
-              <option value="0.875rem">14px</option>
-              <option value="0.9375rem">15px</option>
-              <option value="1rem" selected>16px</option>
-              <option value="1.0625rem">17px</option>
-              <option value="1.125rem">18px</option>
-              <option value="1.1875rem">19px</option>
-              <option value="1.25rem">20px</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="small-row" style="gap:12px;">
-          <div style="flex:1;">
-            <label for="moodSelect">心情 😊</label>
-            <select id="moodSelect" title="选择心情">
-              <option value="" disabled selected>心情 😊</option>
-              <option value="😃 开心">😃 开心</option>
-              <option value="😢 难受">😢 难受</option>
-              <option value="😐 平静">😐 平静</option>
-              <option value="😡 生气">😡 生气</option>
-              <option value="😴 疲惫">😴 疲惫</option>
-              <option value="😍 欣喜">😍 欣喜</option>
-              <option value="😎 沉稳">😎 沉稳</option>
-            </select>
-          </div>
-
-          <div style="flex:1;">
-            <label for="weatherSelect">天气 ☀️</label>
-            <select id="weatherSelect" title="选择天气">
-              <option value="" disabled selected>天气 ☀️</option>
-              <option value="☀️ 晴天">☀️ 晴天</option>
-              <option value="☁️ 阴天">☁️ 阴天</option>
-              <option value="🌧️ 雨天">🌧️ 雨天</option>
-              <option value="⛈️ 雷雨">⛈️ 雷雨</option>
-              <option value="⛄ 雪天">⛄ 雪天</option>
-              <option value="🌫️ 雾天">🌫️ 雾天</option>
-            </select>
-          </div>
-        </div>
-
-        <label for="lifeLog">写下今天的日志</label>
-        <textarea id="lifeLog" placeholder="写下你的心情、事情或备忘..."></textarea>
-
-        <div style="display:flex; gap:10px;">
-          <button id="uploadBtn" class="btn" style="flex:1;">保存日志</button>
-          <button id="logoutBtn" class="btn" style="flex:0 0 120px; background:linear-gradient(45deg,#ff6b6b,#ff9068);">注销</button>
-        </div>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="grid grid-cols-5 gap-6">
+    <!-- 左侧日志栏 -->
+    <div class="col-span-2">
+      <div class="bg-white rounded-2xl shadow-md p-4 h-full flex flex-col">
+        <h2 class="text-xl font-bold mb-3">日志记录</h2>
+        <textarea 
+          id="logInput"
+          class="flex-1 border rounded-lg p-2 resize-none mb-3 focus:ring-2 focus:ring-blue-400"
+          placeholder="写下今天的心情或小记..."
+        ></textarea>
+        <button 
+          id="addLogBtn"
+          class="bg-blue-500 text-white rounded-lg py-2 hover:bg-blue-600 transition"
+        >添加日志</button>
+        <ul id="logList" class="mt-4 space-y-2 text-gray-700 overflow-auto max-h-64"></ul>
       </div>
     </div>
 
-    <!-- 右侧：统计与最近日志 -->
-    <div class="right">
-      <h2>天气统计（饼图）</h2>
-
-      <div class="stat-panel">
-        <label for="statYearSelect">选择年份</label>
-        <select id="statYearSelect" title="选择年份"></select>
-
-        <label for="statMonthSelect" style="margin-top:8px;">选择月份</label>
-        <select id="statMonthSelect" title="选择月份">
-          <option value="current">当前月</option>
-          <option value="all">全部</option>
-          <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option>
-          <option value="3">4月</option><option value="4">5月</option><option value="5">6月</option>
-          <option value="6">7月</option><option value="7">8月</option><option value="8">9月</option>
-          <option value="9">10月</option><option value="10">11月</option><option value="11">12月</option>
-        </select>
-
-        <div style="display:flex; gap:8px; margin-top:8px;">
-          <button id="updateChartBtn" class="btn" style="flex:1;">生成统计</button>
-          <button id="resetChartBtn" class="btn" style="flex:1; background:linear-gradient(45deg,#6ec1ff,#6a8bff);">默认（当前月）</button>
+    <!-- 右侧：心情、天气、统计 -->
+    <div class="col-span-3 flex flex-col gap-6">
+      <div class="bg-white rounded-2xl shadow-md p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold mb-2">今日心情</h2>
+          <select id="moodSelect" class="border rounded-lg p-2">
+            <option>开心</option>
+            <option>平静</option>
+            <option>难过</option>
+            <option>紧张</option>
+            <option>兴奋</option>
+          </select>
         </div>
-
-        <div style="margin-top:12px;">
-          <canvas id="weatherChart" width="300" height="300"></canvas>
+        <div>
+          <h2 class="text-lg font-semibold mb-2">今日天气</h2>
+          <select id="weatherSelect" class="border rounded-lg p-2">
+            <option>晴</option>
+            <option>多云</option>
+            <option>小雨</option>
+            <option>雷阵雨</option>
+            <option>阴</option>
+          </select>
         </div>
       </div>
 
-      <h2 style="margin-top:12px;">最近 8 条日志</h2>
-      <ul class="recent-list" id="recentLogs" aria-live="polite"></ul>
-
-      <div style="margin-top:12px; font-size:0.9rem; color:#cfe6ff;">
-        提示：点击左侧日期可查看当天日志并自动填充心情/天气。
+      <div class="bg-white rounded-2xl shadow-md p-4 flex flex-col items-center">
+        <h2 class="text-lg font-semibold mb-3">心情分布统计</h2>
+        <div class="max-w-[250px]">
+          <canvas id="moodChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- 依赖 -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<script type="module">
-/* ============================
-   Firebase 初始化（保持你原来配置）
-   如果你不使用 Firebase，可把相关代码替换为本地存储逻辑
-   ============================ */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
-  authDomain: "first-ba4c0.firebaseapp.com",
-  projectId: "first-ba4c0",
-  storageBucket: "first-ba4c0.appspot.com",
-  messagingSenderId: "877853934641",
-  appId: "1:877853934641:web:678fc96d4054762f9fc110",
-  measurementId: "G-DETSMZTR64"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-let currentUser = null;
-let allLogs = []; // 会缓存从 Firestore/后端拉到的日志
-let weatherChart = null;
-
-/* ======== DOM 元素 ======== */
-const calendarEl = document.getElementById('calendar');
-const lifeLogEl = document.getElementById('lifeLog');
-const moodSelect = document.getElementById('moodSelect');
-const weatherSelect = document.getElementById('weatherSelect');
-const uploadBtn = document.getElementById('uploadBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const recentLogsEl = document.getElementById('recentLogs');
-const statYearSelect = document.getElementById('statYearSelect');
-const statMonthSelect = document.getElementById('statMonthSelect');
-const updateChartBtn = document.getElementById('updateChartBtn');
-const resetChartBtn = document.getElementById('resetChartBtn');
-
-/* ======== flatpickr 初始化 ======== */
-flatpickr("#calendar", {
-  dateFormat: "Y-m-d",
-  defaultDate: new Date(),
-  maxDate: new Date(),
-  onChange: (selectedDates) => {
-    if(selectedDates.length) showDayLogs(selectedDates[0]);
-  }
-});
-
-/* ======== 登录状态保持（onAuthStateChanged） ========
-   你已有登录页面逻辑；这里只负责隐藏/显示主界面。
-   说明：如果你在外部已有 auth 页面，请确保 onAuthStateChanged 正常触发。
-*/
-onAuthStateChanged(auth, user => {
-  if(user){
-    currentUser = user;
-    // 拉取日志并渲染
-    loadAllLogs();
-    // show main UI — we assume auth UI 已经处理显示
-    document.querySelector('.wrap').style.display = 'block';
-  } else {
-    currentUser = null;
-    // 如果未登录，请自行跳转或展示登录表单（你已有登录表单）
-    // 这里我们仍然拉取 nothing，并隐藏内容
-    document.querySelector('.wrap').style.display = 'none';
-  }
-});
-
-/* ======== 上传 / 保存日志 到 Firestore ======== */
-uploadBtn.addEventListener('click', async () => {
-  if(!currentUser) return alert('请先登录');
-  const text = lifeLogEl.value.trim();
-  if(!text) return alert('日志不能为空');
-  const mood = moodSelect.value || '';
-  const weather = weatherSelect.value || '';
-  try{
-    await addDoc(collection(db, 'logs'), {
-      uid: currentUser.uid,
-      text,
-      mood,
-      weather,
-      ts: Date.now()
+  <script>
+    // 初始化日志功能
+    const logInput = document.getElementById("logInput");
+    const logList = document.getElementById("logList");
+    document.getElementById("addLogBtn").addEventListener("click", () => {
+      const text = logInput.value.trim();
+      if (!text) return;
+      const li = document.createElement("li");
+      li.className = "bg-gray-100 p-2 rounded-md";
+      li.textContent = text;
+      logList.prepend(li);
+      logInput.value = "";
     });
-    lifeLogEl.value = '';
-    await loadAllLogs();
-    alert('保存成功');
-  }catch(err){
-    console.error(err);
-    alert('保存失败：'+(err.message||err));
-  }
-});
 
-logoutBtn.addEventListener('click', async ()=>{
-  try{
-    await signOut(auth);
-    // 隐藏 wrap 让用户回到登录
-    document.querySelector('.wrap').style.display = 'none';
-  }catch(e){
-    console.error(e);
-    alert('注销失败');
-  }
-});
-
-/* ======== 加载所有日志（从 Firestore） ======== */
-async function loadAllLogs(){
-  if(!currentUser) return;
-  try{
-    const q = query(collection(db,'logs'), where('uid','==',currentUser.uid));
-    const snap = await getDocs(q);
-    allLogs = snap.docs.map(d => ({ id:d.id, ...d.data()}));
-    // 排序：最新在前
-    allLogs.sort((a,b) => b.ts - a.ts);
-    renderRecent();
-    // 初始化年份下拉并默认当前年、当前月
-    initYearSelect();
-    // 显示默认日期（flatpickr 的 defaultDate）
-    const d = new Date(document.querySelector('#calendar').value || Date.now());
-    showDayLogs(d);
-    // 默认统计：当前月
-    updateChart(true);
-  }catch(e){
-    console.error('loadAllLogs error', e);
-  }
-}
-
-/* ======== 渲染最近日志 ======== */
-function renderRecent(){
-  recentLogsEl.innerHTML = '';
-  const slice = allLogs.slice(0,8);
-  slice.forEach(it=>{
-    const li = document.createElement('li');
-    const dt = new Date(it.ts);
-    li.textContent = `${dt.toLocaleString()} — ${it.text} ${it.mood?('['+it.mood+']'):''} ${it.weather?('['+it.weather+']'):''}`;
-    recentLogsEl.appendChild(li);
-  });
-}
-
-/* ======== 显示某日日志并自动填充心情/天气（最新一条） ======== */
-function showDayLogs(date){
-  // find logs within that day
-  const start = new Date(date); start.setHours(0,0,0,0);
-  const end = new Date(date); end.setHours(23,59,59,999);
-  const logs = allLogs.filter(l => l.ts >= start.getTime() && l.ts <= end.getTime());
-  // 填充 textarea 与 selects（选最新一条）
-  if(logs.length){
-    const latest = logs[0];
-    lifeLogEl.value = latest.text;
-    if(latest.mood) moodSelect.value = latest.mood;
-    if(latest.weather) weatherSelect.value = latest.weather;
-  } else {
-    // 没有当天日志：清空编辑区但保留选择器
-    lifeLogEl.value = '';
-    // 不自动更改 selects（保留当前选择）
-  }
-}
-
-/* ======== 年份下拉初始化 ======== */
-function initYearSelect(){
-  const years = new Set(allLogs.map(l => new Date(l.ts).getFullYear()));
-  const currentYear = new Date().getFullYear();
-  years.add(currentYear);
-  const arr = Array.from(years).sort((a,b)=>b-a);
-  statYearSelect.innerHTML = '';
-  arr.forEach(y=>{
-    const opt = document.createElement('option');
-    opt.value = y; opt.textContent = y;
-    if(y === currentYear) opt.selected = true;
-    statYearSelect.appendChild(opt);
-  });
-  // 填充月份默认为当前月
-  const curMonth = new Date().getMonth();
-  statMonthSelect.value = 'current';
-}
-
-/* ======== 更新饼图（按年/月过滤） ======== */
-function updateChart(forceDefault=false){
-  // 如果全部日志为空，显示暂无数据提示（销毁图表）
-  if(!allLogs.length){
-    if(weatherChart){ weatherChart.destroy(); weatherChart = null; }
-    const ctx = document.getElementById('weatherChart').getContext('2d');
-    ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
-    ctx.font = "16px Arial"; ctx.fillStyle = "#cfe6ff";
-    ctx.fillText("暂无数据", 20, 50);
-    return;
-  }
-
-  const selectedYear = parseInt(statYearSelect.value || new Date().getFullYear());
-  let selectedMonth = statMonthSelect.value;
-
-  // resolve 'current' to actual month index
-  if(selectedMonth === 'current') selectedMonth = new Date().getMonth().toString();
-
-  // filter logs
-  const filtered = allLogs.filter(l => {
-    const dt = new Date(l.ts);
-    if(dt.getFullYear() !== selectedYear) return false;
-    if(selectedMonth !== 'all' && selectedMonth !== '') {
-      if(dt.getMonth() !== parseInt(selectedMonth)) return false;
-    }
-    return true;
-  });
-
-  // aggregate by weather
-  const counts = {};
-  filtered.forEach(l => {
-    const w = l.weather || '未标注';
-    counts[w] = (counts[w] || 0) + 1;
-  });
-
-  const labels = Object.keys(counts);
-  const data = Object.values(counts);
-
-  // 如果没有符合筛选的数据，提示
-  if(labels.length === 0){
-    if(weatherChart) { weatherChart.destroy(); weatherChart = null; }
-    const ctx = document.getElementById('weatherChart').getContext('2d');
-    ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
-    ctx.font = "14px Arial"; ctx.fillStyle = "#cfe6ff";
-    ctx.fillText("所选年份/月份无数据", 10, 60);
-    return;
-  }
-
-  // 绘制饼图
-  const ctx = document.getElementById('weatherChart').getContext('2d');
-  if(weatherChart) weatherChart.destroy();
-  weatherChart = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#8BD46D','#FF9F40']
-      }]
-    },
-    options: {
-      responsive:true,
-      plugins:{
-        legend:{ position:'bottom', labels:{ color:'#eaf3ff' } },
-        tooltip:{ callbacks:{
-          label: function(ctx){
-            const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
-            const val = ctx.parsed;
-            const pct = ((val/total)*100).toFixed(1);
-            return `${ctx.label}: ${val} (${pct}%)`;
-          }
-        }}
+    // 饼图初始化
+    const ctx = document.getElementById("moodChart");
+    const moodChart = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: ["开心", "平静", "难过", "紧张", "兴奋"],
+        datasets: [{
+          data: [12, 8, 5, 3, 7],
+          backgroundColor: [
+            "#60a5fa", "#93c5fd", "#f87171", "#fbbf24", "#34d399"
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" }
+        }
       }
-    }
-  });
-}
-
-/* 绑定更新按钮 */
-updateChartBtn.addEventListener('click', ()=> updateChart());
-resetChartBtn.addEventListener('click', ()=> {
-  statMonthSelect.value = 'current';
-  statYearSelect.value = new Date().getFullYear();
-  updateChart();
-});
-
-/* ======== 字体 & 字号 控件 ======== */
-document.getElementById('fontSelect').addEventListener('change', e=>{
-  lifeLogEl.style.fontFamily = e.target.value;
-});
-document.getElementById('fontSizeSelect').addEventListener('change', e=>{
-  lifeLogEl.style.fontSize = e.target.value;
-});
-
-/* ============================
-   流星动画（Canvas） — 每 5-10 秒 随机一颗流星
-   简单物理：流星从随机上方开始，匀速斜向下划过并渐隐
-   ============================ */
-(function setupMeteor(){
-  const canvas = document.getElementById('meteorCanvas');
-  const ctx = canvas.getContext('2d');
-  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-  resize(); window.addEventListener('resize', resize);
-
-  const meteors = []; // {x,y, vx, vy, life, maxLife, length, alpha}
-
-  function spawnMeteor(){
-    // start somewhere on upper half
-    const startX = Math.random() * canvas.width;
-    const startY = Math.random() * (canvas.height * 0.35);
-    // direction towards lower-right or lower-left
-    const angle = (Math.random() * 0.6 + 0.2) * (Math.random() > 0.5 ? 1 : -1) + (Math.random()>0.5? 0.5: -0.5);
-    // speed
-    const speed = 6 + Math.random() * 8;
-    const vx = Math.cos(angle) * speed;
-    const vy = Math.sin(angle) * speed + 2;
-    const length = 80 + Math.random() * 160;
-    meteors.push({
-      x: startX, y: startY, vx, vy,
-      life: 0, maxLife: 30 + Math.random()*40, length,
-      alpha: 0
     });
-    scheduleNext(); // 递归安排下一次
-  }
 
-  // schedule next meteor between 5~10s
-  let timer = null;
-  function scheduleNext(){
-    const delay = 5000 + Math.random()*5000;
-    clearTimeout(timer);
-    timer = setTimeout(spawnMeteor, delay);
-  }
-  scheduleNext();
-
-  function update(){
-    ctx.clearRect(0,0,canvas.width, canvas.height);
-    for(let i = meteors.length-1; i>=0; i--){
-      const m = meteors[i];
-      m.life++;
-      m.x += m.vx;
-      m.y += m.vy;
-      // alpha ramp up then down
-      m.alpha = Math.min(1, m.life / 8);
-      const fade = 1 - (m.life / m.maxLife);
-      const trueAlpha = Math.max(0, m.alpha * fade);
-
-      // draw tail (a thin gradient line)
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const grad = ctx.createLinearGradient(m.x, m.y, m.x - m.vx*m.length*0.5, m.y - m.vy*m.length*0.5);
-      grad.addColorStop(0, `rgba(255,255,255,${trueAlpha})`);
-      grad.addColorStop(1, `rgba(150,180,255,0)`);
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 2 + Math.random()*1.5;
-      ctx.beginPath();
-      ctx.moveTo(m.x, m.y);
-      ctx.lineTo(m.x - m.vx * (m.length / 10), m.y - m.vy * (m.length / 10));
-      ctx.stroke();
-
-      // small head
-      ctx.fillStyle = `rgba(255,255,255,${trueAlpha})`;
-      ctx.beginPath();
-      ctx.arc(m.x, m.y, 1.8 + Math.random()*1.8, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-
-      if(m.life > m.maxLife || m.x < -50 || m.y > canvas.height + 50 || m.x > canvas.width + 50){
-        meteors.splice(i,1);
-      }
+    // 模拟动态刷新（5-10秒随机）
+    function randomUpdate() {
+      moodChart.data.datasets[0].data = moodChart.data.datasets[0].data.map(
+        () => Math.floor(Math.random() * 15) + 1
+      );
+      moodChart.update();
+      const nextTime = Math.floor(Math.random() * 5000) + 5000; // 5-10秒
+      setTimeout(randomUpdate, nextTime);
     }
-    requestAnimationFrame(update);
-  }
-  update();
-})();
-
-/* ======== 页面加载时若已登录则展示/初始化 ======== */
-/* 为兼容：如果你在别处管理登录 UI，请确保 onAuthStateChanged 会被触发。
-   另外：页面首次打开时，如果你希望立即显示 UI，可以临时注入
-   伪登录（仅用于本地开发）。这里不提供伪登录。 */
-
-/* ======== 使界面在未登录时隐藏 wrap（避免跳闪） ======== */
-document.querySelector('.wrap').style.display = 'none';
-
-</script>
+    randomUpdate();
+  </script>
 </body>
 </html>
