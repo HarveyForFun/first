@@ -1,146 +1,69 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>心情与天气日志</title>
+<title>日志</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <style>
-  body {
-    margin: 0;
-    font-family: "Microsoft YaHei", sans-serif;
-    background: linear-gradient(to bottom right, #0b1d3a, #122e5c, #1a3a70);
-    height: 100vh;
-    overflow: hidden;
-    color: #fff;
-  }
-
-  /* 流星画布 */
-  #meteorCanvas {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .container {
-    display: flex;
-    height: 100vh;
-    position: relative;
-    z-index: 1;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-
-  .left-panel, .right-panel {
-    background: rgba(0,0,0,0.4);
-    border-radius: 15px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.4);
-    padding: 20px;
-  }
-
-  .left-panel {
-    flex: 6;
-    margin-right: 20px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .right-panel {
-    flex: 4;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .section-title {
-    font-size: 1.2rem;
-    margin-bottom: 10px;
-    text-align: center;
-  }
-
-  textarea {
-    flex: 1;
-    resize: none;
-    border-radius: 10px;
-    border: none;
-    padding: 10px;
-    font-size: 14px;
-    background: rgba(255,255,255,0.9);
-    color: #000;
-  }
-
-  select, input[type="date"] {
-    border-radius: 8px;
-    border: none;
-    padding: 5px;
-    background: rgba(255,255,255,0.85);
-    font-size: 14px;
-    color: #000;
-  }
-
-  select option {
-    background: rgba(60,60,60,0.9);
-    color: #fff;
-  }
-
-  button {
-    background: #1f62c1;
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    padding: 8px 12px;
-    margin-top: 10px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.3s;
-  }
-
-  button:hover {
-    background: #2c7efc;
-  }
-
-  .log-entry {
-    background: rgba(255,255,255,0.9);
-    color: #000;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    max-height: 150px;
-    overflow-y: auto;
-  }
-
-  .weather-chart {
-    background: rgba(255,255,255,0.1);
-    border-radius: 15px;
-    padding: 10px;
-    text-align: center;
-  }
-
-  canvas#weatherPie {
-    max-width: 250px;
-    max-height: 250px;
-    margin: 0 auto;
-  }
+body {
+  margin:0;
+  font-family: 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(to bottom right,#0b1d3a,#122e5c,#1a3a70);
+  height:100vh;
+  overflow:hidden;
+  color:#fff;
+}
+#meteorCanvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;
+}
+.container{
+  display:flex;height:100vh;position:relative;z-index:1;padding:20px;box-sizing:border-box;
+}
+.left-panel,.right-panel{
+  background:rgba(0,0,0,0.4);
+  border-radius:15px;
+  box-shadow:0 0 20px rgba(0,0,0,0.4);
+  padding:20px;
+}
+.left-panel{flex:6;margin-right:20px;display:flex;flex-direction:column;}
+.right-panel{flex:4;display:flex;flex-direction:column;justify-content:space-between;}
+.section-title{text-align:center;margin-bottom:10px;font-size:1.2rem;}
+textarea{flex:1;resize:none;border-radius:10px;border:none;padding:10px;font-size:14px;background:rgba(255,255,255,0.9);color:#000;}
+select,input[type="date"]{border-radius:8px;border:none;padding:5px;background:rgba(255,255,255,0.85);font-size:14px;color:#000;margin-right:5px;}
+select option{background:rgba(60,60,60,0.9);color:#fff;}
+button{background:#1f62c1;border:none;border-radius:8px;color:#fff;padding:8px 12px;margin-top:10px;font-size:14px;cursor:pointer;transition:background 0.3s;}
+button:hover{background:#2c7efc;}
+.log-entry{background:rgba(255,255,255,0.9);color:#000;padding:10px;border-radius:10px;margin-bottom:10px;max-height:150px;overflow-y:auto;}
+.weather-chart{background:rgba(255,255,255,0.1);border-radius:15px;padding:10px;text-align:center;}
+canvas#weatherPie{max-width:250px;max-height:250px;margin:0 auto;}
+#logoutBtn{background:#ff4444;margin-top:0;}
 </style>
 </head>
 <body>
 <canvas id="meteorCanvas"></canvas>
-<div class="container">
-  <!-- 左边：日志输入 -->
+
+<!-- 登录/注册 -->
+<div id="authForm" style="max-width:400px;margin:80px auto;background:rgba(0,0,0,0.75);padding:25px;border-radius:15px;box-shadow:0 8px 20px rgba(0,0,0,0.5);">
+  <h2 id="formTitle">登录</h2>
+  <input type="email" id="email" placeholder="邮箱">
+  <input type="password" id="password" placeholder="密码">
+  <button id="authButton">登录</button>
+  <div id="toggleAuth" style="text-align:center;margin-top:12px;cursor:pointer;color:#00ffff;font-weight:bold;">切换到注册</div>
+</div>
+
+<!-- 主页面 -->
+<div class="container" id="mainPage" style="display:none;">
   <div class="left-panel">
-    <div class="section-title">✍️ 今日日志</div>
+    <div class="section-title">✍️ 日志输入</div>
     <input type="date" id="dateInput">
     <div style="margin-top:10px;">
-      <label>字体：</label>
       <select id="fontSelect">
         <option value="Microsoft YaHei">微软雅黑</option>
         <option value="SimSun">宋体</option>
         <option value="KaiTi">楷体</option>
       </select>
-      <label style="margin-left:10px;">字号：</label>
       <select id="fontSizeSelect">
         <option value="12px">12</option>
         <option value="14px">14</option>
@@ -150,14 +73,12 @@
       </select>
     </div>
     <div style="margin-top:10px;">
-      <label>心情：</label>
       <select id="moodSelect">
         <option>😊 开心</option>
         <option>😐 平静</option>
         <option>😔 低落</option>
         <option>😡 生气</option>
       </select>
-      <label style="margin-left:10px;">天气：</label>
       <select id="weatherSelect">
         <option>☀️ 晴</option>
         <option>🌧️ 雨</option>
@@ -165,19 +86,16 @@
         <option>❄️ 雪</option>
       </select>
     </div>
-    <textarea id="logInput" placeholder="写下今天的想法吧..."></textarea>
-    <button onclick="saveLog()">保存日志</button>
+    <textarea id="logInput" placeholder="写下今天的想法..."></textarea>
+    <button onclick="addLog()">保存日志</button>
+    <button id="logoutBtn" onclick="logout()">注销</button>
   </div>
 
-  <!-- 右边 -->
   <div class="right-panel">
-    <!-- 日志记录 -->
     <div>
       <div class="section-title">📚 日志记录</div>
       <div id="logContainer"></div>
     </div>
-
-    <!-- 天气统计 -->
     <div class="weather-chart">
       <div class="section-title">🌦️ 天气统计</div>
       <canvas id="weatherPie"></canvas>
@@ -186,101 +104,154 @@
   </div>
 </div>
 
-<script>
-let logs = JSON.parse(localStorage.getItem("logs") || "[]");
-let chart;
+<script type="module">
+// Firebase 初始化
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-function saveLog() {
-  const date = document.getElementById("dateInput").value;
-  const mood = document.getElementById("moodSelect").value;
-  const weather = document.getElementById("weatherSelect").value;
-  const text = document.getElementById("logInput").value;
-  if (!date || !text) return alert("请填写日期和日志内容！");
-  const font = document.getElementById("fontSelect").value;
-  const fontSize = document.getElementById("fontSizeSelect").value;
+const firebaseConfig = {
+  apiKey: "AIzaSyCeMdvnKz7xDdiObz6eKCHJ3ZEX5Xj7AVI",
+  authDomain: "first-ba4c0.firebaseapp.com",
+  projectId: "first-ba4c0",
+  storageBucket: "first-ba4c0.appspot.com",
+  messagingSenderId: "877853934641",
+  appId: "1:877853934641:web:678fc96d4054762f9fc110",
+  measurementId: "G-DETSMZTR64"
+};
 
-  logs.push({date, mood, weather, text, font, fontSize});
-  localStorage.setItem("logs", JSON.stringify(logs));
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let currentUser = null;
+let allLogs = [];
+
+// 登录/注册
+let isLogin = true;
+function handleAuth(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if(!email || !password) return alert('请输入邮箱和密码');
+  if(isLogin){
+    signInWithEmailAndPassword(auth,email,password)
+    .then(res=>{
+      currentUser=res.user;
+      document.getElementById('authForm').style.display='none';
+      document.getElementById('mainPage').style.display='flex';
+      loadLogs();
+    }).catch(err=>alert('登录失败:'+err.message));
+  }else{
+    createUserWithEmailAndPassword(auth,email,password)
+    .then(()=>{ alert('注册成功！请登录'); toggleAuthForm(); })
+    .catch(err=>alert('注册失败:'+err.message));
+  }
+}
+function toggleAuthForm(){
+  isLogin=!isLogin;
+  document.getElementById('formTitle').textContent=isLogin?'登录':'注册';
+  document.getElementById('authButton').textContent=isLogin?'登录':'注册';
+  document.getElementById('toggleAuth').textContent=isLogin?'切换到注册':'切换到登录';
+}
+document.getElementById('authButton').addEventListener('click', handleAuth);
+document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
+
+// 注销
+function logout(){
+  signOut(auth).then(()=>{ location.reload(); });
+}
+
+// 上传日志
+async function addLog(){
+  if(!currentUser) return alert('请先登录');
+  const date=document.getElementById('dateInput').value;
+  const text=document.getElementById('logInput').value.trim();
+  const mood=document.getElementById('moodSelect').value;
+  const weather=document.getElementById('weatherSelect').value;
+  const font=document.getElementById('fontSelect').value;
+  const fontSize=document.getElementById('fontSizeSelect').value;
+  if(!date || !text) return alert('请填写日期和日志内容！');
+
+  await addDoc(collection(db,'logs'),{
+    uid:currentUser.uid,
+    date,text,mood,weather,font,fontSize,
+    timestamp:Date.now()
+  });
+  document.getElementById('logInput').value='';
+  loadLogs();
+}
+
+// 加载日志
+async function loadLogs(){
+  if(!currentUser) return;
+  const q=query(collection(db,'logs'),where('uid','==',currentUser.uid));
+  const snapshot=await getDocs(q);
+  allLogs=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+  allLogs.sort((a,b)=>b.timestamp-a.timestamp);
   renderLogs();
   updateChart();
 }
 
-function renderLogs() {
-  const container = document.getElementById("logContainer");
-  container.innerHTML = "";
-  logs.forEach(log => {
-    const div = document.createElement("div");
-    div.className = "log-entry";
-    div.style.fontFamily = log.font;
-    div.style.fontSize = log.fontSize;
-    div.innerHTML = `<b>${log.date}</b> ${log.mood} ${log.weather}<br>${log.text}`;
+// 渲染日志列表
+function renderLogs(){
+  const container=document.getElementById('logContainer');
+  container.innerHTML='';
+  allLogs.forEach(log=>{
+    const div=document.createElement('div');
+    div.className='log-entry';
+    div.style.fontFamily=log.font;
+    div.style.fontSize=log.fontSize;
+    div.innerHTML=`<b>${log.date}</b> ${log.mood} ${log.weather}<br>${log.text}`;
     container.appendChild(div);
   });
 }
 
-function updateChart() {
-  const ctx = document.getElementById("weatherPie").getContext("2d");
-  const counts = { "☀️ 晴":0, "🌧️ 雨":0, "⛅ 多云":0, "❄️ 雪":0 };
-  logs.forEach(l => counts[l.weather]++);
-  const data = Object.values(counts);
-  const labels = Object.keys(counts);
-
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: ["#ffce56","#36a2eb","#aaa","#c2e0ff"]
-      }]
-    }
-  });
+// 饼图统计
+let chart;
+function updateChart(){
+  const ctx=document.getElementById('weatherPie').getContext('2d');
+  const counts={"☀️ 晴":0,"🌧️ 雨":0,"⛅ 多云":0,"❄️ 雪":0};
+  allLogs.forEach(l=>counts[l.weather]++);
+  const data=Object.values(counts);
+  const labels=Object.keys(counts);
+  if(chart) chart.destroy();
+  chart=new Chart(ctx,{type:'pie',data:{labels,datasets:[{data,backgroundColor:["#ffce56","#36a2eb","#aaa","#c2e0ff"]}]}})
 }
 
-renderLogs();
-updateChart();
-
 // ====== 流星特效 ======
-const canvas = document.getElementById("meteorCanvas");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const canvas=document.getElementById("meteorCanvas");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
 
-function createMeteor() {
-  const x = Math.random() * canvas.width;
-  const y = Math.random() * canvas.height / 2;
-  const len = 150;
-  const speed = 8;
-  let opacity = 1;
-
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function createMeteor(){
+  const x=Math.random()*canvas.width;
+  const y=Math.random()*canvas.height/2;
+  const len=150;
+  let opacity=1;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.beginPath();
-    const grad = ctx.createLinearGradient(x, y, x - len, y + len);
-    grad.addColorStop(0, "rgba(255,255,255," + opacity + ")");
-    grad.addColorStop(1, "transparent");
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 2;
-    ctx.moveTo(x, y);
-    ctx.lineTo(x - len, y + len);
+    const grad=ctx.createLinearGradient(x,y,x-len,y+len);
+    grad.addColorStop(0,"rgba(255,255,255,"+opacity+")");
+    grad.addColorStop(1,"transparent");
+    ctx.strokeStyle=grad;
+    ctx.lineWidth=2;
+    ctx.moveTo(x,y);
+    ctx.lineTo(x-len,y+len);
     ctx.stroke();
   }
-
-  let frame = 0;
-  function animate() {
-    if (frame > 80) return;
-    frame++;
-    opacity -= 0.012;
+  let frame=0;
+  function animate(){
+    if(frame>80) return;
+    frame++;opacity-=0.012;
     draw();
     requestAnimationFrame(animate);
   }
   animate();
 }
 
-setInterval(() => {
-  createMeteor();
-}, Math.random() * 5000 + 5000);
+setInterval(()=>{ createMeteor(); }, Math.random()*5000+5000);
 
 </script>
 </body>
