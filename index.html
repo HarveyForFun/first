@@ -75,55 +75,33 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
 .flex-col { display:flex; flex-direction:column; gap:5px; }
 .stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
-canvas { max-width:100%; height:200px; margin-top:10px; }
-
-/* 塔罗牌样式 */
-#tarotDeckContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 10px;
-}
-.tarot-card {
-  width: 80px;
-  height: 120px;
-  perspective: 600px;
-  cursor: pointer;
-}
-.tarot-card-inner {
-  position: relative;
+#tarotCard {
   width: 100%;
-  height: 100%;
-  text-align: center;
-  transition: transform 0.6s;
-  transform-style: preserve-3d;
-}
-.tarot-card.show-details .tarot-card-inner {
-  transform: rotateY(180deg);
-}
-.tarot-card-front, .tarot-card-back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  backface-visibility: hidden;
-  border-radius: 8px;
+  height: 180px;
+  background: linear-gradient(180deg,#222,#444);
+  border-radius: 10px;
   display:flex;
-  align-items:center;
   justify-content:center;
-  font-size: 0.7rem;
-  padding: 5px;
+  align-items:center;
+  cursor:pointer;
+  font-size: 20px;
+  text-align:center;
+  user-select: none;
+  margin-top:5px;
+  color:#fff;
 }
-.tarot-card-front {
-  background: #333;
+#tarotCard.flipped {
+  background:#fff;
+  color:#000;
 }
-.tarot-card-back {
-  background: #444;
-  transform: rotateY(180deg);
-  flex-direction: column;
+#tarotResult {
+  background: rgba(255,255,255,0.1);
+  padding:10px;
+  border-radius:8px;
+  min-height:50px;
+  margin-top:5px;
 }
-.tarot-card-back .title { font-weight:bold; margin-bottom:5px; font-size:0.8rem; }
-.tarot-card-back .details { font-size:0.65rem; }
+canvas { max-width:100%; height:200px; margin-top:10px; }
 </style>
 </head>
 <body>
@@ -193,7 +171,8 @@ canvas { max-width:100%; height:200px; margin-top:10px; }
 
     <div class="flex-col">
       <label>塔罗占卜</label>
-      <div id="tarotDeckContainer"></div>
+      <div id="tarotCard">点击抽牌</div>
+      <div id="tarotResult"></div>
     </div>
 
     <button id="logoutBtn" style="background:#f44336;">注销</button>
@@ -294,28 +273,34 @@ function addLifeLog() {
   if (!currentUser) return alert('请先登录');
   addDoc(collection(db, 'logs'), {
     uid: currentUser.uid,
-    text, ts: Date.now()
+    text,
+    ts: Date.now()
   }).then(()=> {
     document.getElementById('lifeLog').value = '';
     loadAllLogs();
   }).catch(err => alert('上传失败: '+err.message));
 }
 
-// 上传心情或天气
-async function uploadMoodWeather(type){
+// 上传心情
+function uploadMood(){
   if(!currentUser) return alert('请先登录');
-  const date = new Date();
-  const start = new Date(date); start.setHours(0,0,0,0);
-  const end = new Date(date); end.setHours(23,59,59,999);
-  const q = query(collection(db,'logs'), where('uid','==',currentUser.uid));
-  const snapshot = await getDocs(q);
-  let todayDoc = snapshot.docs.find(doc=>doc.data().ts >= start.getTime() && doc.data().ts <= end.getTime());
-  if(!todayDoc){
-    todayDoc = await addDoc(collection(db,'logs'), { uid:currentUser.uid, ts:Date.now() });
-  }
-  const docRef = todayDoc.ref || doc(db,'logs',todayDoc.id);
-  const value = type==='mood'?document.getElementById('moodSelect').value:document.getElementById('weatherSelect').value;
-  updateDoc(docRef,{ [type]: value }).then(loadAllLogs);
+  const mood = document.getElementById('moodSelect').value;
+  addDoc(collection(db,'moodWeather'),{
+    uid:currentUser.uid,
+    mood,
+    ts:Date.now()
+  }).then(()=>alert('心情上传成功')).catch(err=>alert(err.message));
+}
+
+// 上传天气
+function uploadWeather(){
+  if(!currentUser) return alert('请先登录');
+  const weather = document.getElementById('weatherSelect').value;
+  addDoc(collection(db,'moodWeather'),{
+    uid:currentUser.uid,
+    weather,
+    ts:Date.now()
+  }).then(()=>alert('天气上传成功')).catch(err=>alert(err.message));
 }
 
 // 加载日志
@@ -334,7 +319,7 @@ async function loadAllLogs() {
 
   allLogs.forEach((doc,i)=>{
     const li = document.createElement('li');
-    li.textContent = `${doc.text || ''} [${doc.mood||''} ${doc.weather||''}]`;
+    li.textContent = `${doc.text}`;
     if(i<5) recentLogs.appendChild(li);
     historyLogs.appendChild(li.cloneNode(true));
   });
@@ -347,14 +332,11 @@ function showDayLogs(date){
   const dayLogs = document.getElementById('dayLogs'); dayLogs.innerHTML = '';
   const start = new Date(date); start.setHours(0,0,0,0);
   const end = new Date(date); end.setHours(23,59,59,999);
+
   const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
-  if(logs.length){ const latest = logs[0];
-    if(latest.mood) document.getElementById('moodSelect').value = latest.mood;
-    if(latest.weather) document.getElementById('weatherSelect').value = latest.weather;
-  }
   logs.forEach(d=>{
     const li = document.createElement('li');
-    li.textContent = `${d.text || ''} [${d.mood||''} ${d.weather||''}]`;
+    li.textContent = `${d.text}`;
     dayLogs.appendChild(li);
   });
 }
@@ -389,7 +371,7 @@ function updateCharts(){
 
   // 天气统计
   const weatherCounts = {};
-  filtered.forEach(d=>{ if(d.weather) weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1; });
+  filtered.forEach(d=>{ weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1; });
   const wLabels = Object.keys(weatherCounts), wData = Object.values(weatherCounts);
   const wCtx = document.getElementById('weatherChart').getContext('2d');
   if(weatherChart) weatherChart.destroy();
@@ -400,20 +382,25 @@ function updateCharts(){
 
   // 心情统计
   const moodCounts = {};
-  filtered.forEach(d=>{ if(d.mood) moodCounts[d.mood] = (moodCounts[d.mood]||0)+1; });
+  filtered.forEach(d=>{ moodCounts[d.mood] = (moodCounts[d.mood]||0)+1; });
   const mLabels = Object.keys(moodCounts), mData = Object.values(moodCounts);
   const mCtx = document.getElementById('moodChart').getContext('2d');
   if(moodChart) moodChart.destroy();
   moodChart = new Chart(mCtx,{
-    type:'pie', data:{labels:mLabels, datasets:[{data:mData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF']}]},
+    type:'pie', data:{labels:mLabels, datasets:[{data:mData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0']}]},
     options:{responsive:true, plugins:{legend:{position:'bottom'}}}
   });
 }
 
-// 初始化日期选择
-flatpickr("#calendar",{ defaultDate:new Date(), onChange:[function(selectedDates){ showDayLogs(selectedDates[0]); }] });
+// 字体选择
+document.getElementById('fontSelect').addEventListener('change', e=>{
+  document.getElementById('lifeLog').style.fontFamily = e.target.value;
+});
+document.getElementById('fontSizeSelect').addEventListener('change', e=>{
+  document.getElementById('lifeLog').style.fontSize = e.target.value;
+});
 
-// 塔罗牌数据
+// ===== 塔罗占卜 =====
 const tarotDeck = [
   { name: "愚者", upright: "新的开始，天真无畏，冒险精神", reversed: "鲁莽，缺乏计划，轻率" },
   { name: "魔术师", upright: "创造力、行动力、潜能发挥", reversed: "欺骗、浪费机会、潜能未用" },
@@ -499,56 +486,32 @@ const tarotDeck = [
   { name: "钱币国王", upright: "稳定、成功、智慧", reversed: "固执、专横、失衡" }
 ];
 
-// 渲染塔罗牌
-function renderTarotDeck(){
-  const container = document.getElementById('tarotDeckContainer');
-  container.innerHTML = '';
-  tarotDeck.forEach(card=>{
-    const cardEl = document.createElement('div');
-    cardEl.className = 'tarot-card';
-    cardEl.innerHTML = `
-      <div class="tarot-card-inner">
-        <div class="tarot-card-front">牌背</div>
-        <div class="tarot-card-back">
-          <div class="title">${card.name}</div>
-          <div class="details">${card.desc}</div>
-        </div>
-      </div>`;
-    cardEl.onclick = ()=>{ cardEl.classList.toggle('show-details'); }
-    container.appendChild(cardEl);
-  });
-}
+const tarotCardEl = document.getElementById('tarotCard');
+const tarotResultEl = document.getElementById('tarotResult');
 
-// 初始化
-document.getElementById('authButton').onclick = handleAuth;
-document.getElementById('toggleAuth').onclick = toggleAuthForm;
-document.getElementById('uploadBtn').onclick = addLifeLog;
-document.getElementById('uploadMoodBtn').onclick = ()=>uploadMoodWeather('mood');
-document.getElementById('uploadWeatherBtn').onclick = ()=>uploadMoodWeather('weather');
-document.getElementById('historyBtn').onclick = toggleHistory;
-document.getElementById('updateChartBtn').onclick = updateCharts;
-document.getElementById('logoutBtn').onclick = ()=>{
-  signOut(auth).then(()=>{
-    currentUser = null;
-    document.getElementById('mainPage').style.display='none';
-    document.getElementById('authForm').style.display='block';
-  });
-};
-
-// 监听登录状态
-onAuthStateChanged(auth,user=>{
-  if(user){
-    currentUser = user;
-    document.getElementById('mainPage').style.display='flex';
-    document.getElementById('authForm').style.display='none';
-    loadAllLogs();
-    renderTarotDeck();
-  } else {
-    currentUser = null;
-    document.getElementById('mainPage').style.display='none';
-    document.getElementById('authForm').style.display='block';
-  }
+tarotCardEl.addEventListener('click', ()=>{
+  const card = tarotDeck[Math.floor(Math.random()*tarotDeck.length)];
+  const isReversed = Math.random()<0.5;
+  tarotCardEl.classList.add('flipped');
+  tarotCardEl.textContent = `${card.name} ${isReversed?'逆位':'正位'}`;
+  tarotResultEl.textContent = isReversed? card.reversed : card.upright;
 });
+
+// ===== 事件绑定 =====
+document.getElementById('authButton').addEventListener('click', handleAuth);
+document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
+document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
+document.getElementById('uploadMoodBtn').addEventListener('click', uploadMood);
+document.getElementById('uploadWeatherBtn').addEventListener('click', uploadWeather);
+document.getElementById('historyBtn').addEventListener('click', toggleHistory);
+document.getElementById('logoutBtn').addEventListener('click', ()=>{signOut(auth); location.reload();});
+
+flatpickr("#calendar",{onChange:(selectedDates)=>showDayLogs(selectedDates[0])});
+
+onAuthStateChanged(auth,user=>{
+  if(user){ currentUser=user; document.getElementById('authForm').style.display='none'; document.getElementById('mainPage').style.display='flex'; loadAllLogs(); }
+});
+
 </script>
 </body>
 </html>
