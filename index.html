@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>日志</title>
+<title>日志与塔罗占卜</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 body {
@@ -13,6 +13,7 @@ body {
   min-height: 100vh;
   color: #fff;
   overflow-x: hidden;
+  position: relative;
 }
 .container {
   max-width: 1200px;
@@ -29,7 +30,7 @@ body {
 }
 .left, .right { width: 25%; }
 .center { width: 50%; display:flex; flex-direction:column; gap:10px; }
-h2 { text-align: center; margin-bottom: 15px; }
+h2, h3 { text-align: center; margin-bottom: 15px; }
 textarea {
   width: 100%;
   height: 250px;
@@ -59,9 +60,7 @@ select option {
   background: rgba(50,50,50,0.9);
   color: #fff;
 }
-select option:hover {
-  background: #666;
-}
+select option:hover { background: #666; }
 button {
   cursor: pointer;
   background: linear-gradient(45deg, #ff6ec4, #7873f5);
@@ -76,7 +75,8 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
 .flex-col { display:flex; flex-direction:column; gap:5px; }
 .stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
-#tarotResult { margin-top:10px; background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:60px; }
+#tarotResult { background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:50px; margin-top:5px; }
+canvas { max-width:100%; height:200px; margin-top:10px; }
 </style>
 </head>
 <body>
@@ -142,7 +142,6 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
       </select>
     </div>
 
-    <!-- 塔罗占卜 -->
     <div class="flex-col">
       <label>塔罗占卜</label>
       <button id="tarotBtn">开始占卜</button>
@@ -160,26 +159,6 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 
     <h3>当天日志</h3>
     <ul id="dayLogs"></ul>
-
-    <!-- 横向统计 -->
-    <div class="stats" id="statsSection">
-      <h3>统计</h3>
-      <div style="display:flex; gap:10px; justify-content:space-around;">
-        <canvas id="weatherChart" width="150" height="150"></canvas>
-        <canvas id="moodChart" width="150" height="150"></canvas>
-      </div>
-      <label>选择年份</label>
-      <select id="statYearSelect"></select>
-      <label>选择月份</label>
-      <select id="statMonthSelect">
-        <option value="all">全部</option>
-        <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option>
-        <option value="3">4月</option><option value="4">5月</option><option value="5">6月</option>
-        <option value="6">7月</option><option value="7">8月</option><option value="8">9月</option>
-        <option value="9">10月</option><option value="10">11月</option><option value="11">12月</option>
-      </select>
-      <button id="updateChartBtn">更新统计</button>
-    </div>
   </div>
 
   <!-- 右侧栏 -->
@@ -189,6 +168,24 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 
     <button id="historyBtn">历史记录</button>
     <ul id="historyLogs" style="display:none"></ul>
+
+    <div class="stats">
+      <h3>统计</h3>
+      <label>选择年份</label>
+      <select id="statYearSelect"></select>
+      <label>选择月份</label>
+      <select id="statMonthSelect">
+        <option value="all">全部</option>
+        <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option>
+        <option value="3">4月</option><option value="4">5月</option><option value="5">6月</option>
+        <option value="6">7月</option><option value="7">8月</option>
+        <option value="8">9月</option><option value="9">10月</option>
+        <option value="10">11月</option><option value="11">12月</option>
+      </select>
+      <button id="updateChartBtn">更新统计</button>
+      <canvas id="weatherChart"></canvas>
+      <canvas id="moodChart"></canvas>
+    </div>
   </div>
 
 </div>
@@ -210,7 +207,6 @@ const firebaseConfig = {
   appId: "1:877853934641:web:678fc96d4054762f9fc110",
   measurementId: "G-DETSMZTR64"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -226,7 +222,6 @@ function handleAuth(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
   if(!email || !password) return alert('请输入邮箱和密码');
-
   if(isLogin){
     signInWithEmailAndPassword(auth, email, password)
       .then(res => { currentUser = res.user; })
@@ -237,7 +232,6 @@ function handleAuth(){
       .catch(err => alert('注册失败: '+err.message));
   }
 }
-
 function toggleAuthForm(){
   isLogin = !isLogin;
   document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
@@ -250,22 +244,16 @@ function addLifeLog() {
   const text = document.getElementById('lifeLog').value.trim();
   if (!text) return alert('日志不能为空');
   if (!currentUser) return alert('请先登录');
-
   const mood = document.getElementById('moodSelect').value;
   const weather = document.getElementById('weatherSelect').value;
 
   addDoc(collection(db, 'logs'), {
     uid: currentUser.uid,
-    text,
-    mood,
-    weather,
-    ts: Date.now()
-  })
-  .then(()=> {
+    text, mood, weather, ts: Date.now()
+  }).then(()=> {
     document.getElementById('lifeLog').value = '';
     loadAllLogs();
-  })
-  .catch(err => alert('上传失败: '+err.message));
+  }).catch(err => alert('上传失败: '+err.message));
 }
 
 // 加载日志
@@ -275,9 +263,7 @@ async function loadAllLogs() {
   const recentLogs = document.getElementById('recentLogs');
   const historyLogs = document.getElementById('historyLogs');
   const dayLogs = document.getElementById('dayLogs');
-  recentLogs.innerHTML = '';
-  historyLogs.innerHTML = '';
-  dayLogs.innerHTML = '';
+  recentLogs.innerHTML = ''; historyLogs.innerHTML = ''; dayLogs.innerHTML = '';
 
   const q = query(collection(db, 'logs'), where('uid','==',userId));
   const snapshot = await getDocs(q);
@@ -295,36 +281,26 @@ async function loadAllLogs() {
   initStatYearSelect();
   updateCharts();
 }
-
-// 显示当天日志 & 自动填充心情/天气
-function showDayLogs(date) {
-  const dayLogs = document.getElementById('dayLogs');
-  dayLogs.innerHTML = '';
+function showDayLogs(date){
+  const dayLogs = document.getElementById('dayLogs'); dayLogs.innerHTML = '';
   const start = new Date(date); start.setHours(0,0,0,0);
   const end = new Date(date); end.setHours(23,59,59,999);
 
   const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
-
-  if(logs.length){
-    const latest = logs[0]; // 最新一条
+  if(logs.length){ const latest = logs[0];
     document.getElementById('moodSelect').value = latest.mood;
     document.getElementById('weatherSelect').value = latest.weather;
   }
-
   logs.forEach(d=>{
     const li = document.createElement('li');
     li.textContent = `${d.text} [${d.mood} ${d.weather}]`;
     dayLogs.appendChild(li);
   });
 }
-
-// 历史记录切换
 function toggleHistory(){
   const el = document.getElementById('historyLogs');
   el.style.display = el.style.display==='none'?'block':'none';
 }
-
-// 初始化年份下拉
 function initStatYearSelect(){
   const yearSelect = document.getElementById('statYearSelect');
   yearSelect.innerHTML = '';
@@ -340,45 +316,36 @@ function initStatYearSelect(){
     yearSelect.appendChild(option);
   });
 }
-
-// 更新双饼图
-function updateCharts() {
+function updateCharts(){
   const year = parseInt(document.getElementById('statYearSelect').value);
   const month = document.getElementById('statMonthSelect').value;
-
-  let filtered = allLogs.filter(d => {
+  let filtered = allLogs.filter(d=>{
     const date = new Date(d.ts);
     if(date.getFullYear()!==year) return false;
     if(month!=='all' && date.getMonth()!==parseInt(month)) return false;
     return true;
   });
 
-  // 天气饼图
+  // 天气统计
   const weatherCounts = {};
-  filtered.forEach(d=> weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1 );
-  const weatherLabels = Object.keys(weatherCounts);
-  const weatherData = Object.values(weatherCounts);
-
-  const ctxW = document.getElementById('weatherChart').getContext('2d');
-  if(window.weatherChart) window.weatherChart.destroy();
-  window.weatherChart = new Chart(ctxW, {
-    type:'pie',
-    data:{ labels:weatherLabels, datasets:[{ data:weatherData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
-    options:{ responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+  filtered.forEach(d=>{ weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1; });
+  const wLabels = Object.keys(weatherCounts), wData = Object.values(weatherCounts);
+  const wCtx = document.getElementById('weatherChart').getContext('2d');
+  if(weatherChart) weatherChart.destroy();
+  weatherChart = new Chart(wCtx,{
+    type:'pie', data:{labels:wLabels, datasets:[{data:wData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF']}]},
+    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
   });
 
-  // 心情饼图
+  // 心情统计
   const moodCounts = {};
-  filtered.forEach(d=> moodCounts[d.mood] = (moodCounts[d.mood]||0)+1 );
-  const moodLabels = Object.keys(moodCounts);
-  const moodData = Object.values(moodCounts);
-
-  const ctxM = document.getElementById('moodChart').getContext('2d');
-  if(window.moodChart) window.moodChart.destroy();
-  window.moodChart = new Chart(ctxM, {
-    type:'pie',
-    data:{ labels:moodLabels, datasets:[{ data:moodData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0'] }] },
-    options:{ responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+  filtered.forEach(d=>{ moodCounts[d.mood] = (moodCounts[d.mood]||0)+1; });
+  const mLabels = Object.keys(moodCounts), mData = Object.values(moodCounts);
+  const mCtx = document.getElementById('moodChart').getContext('2d');
+  if(moodChart) moodChart.destroy();
+  moodChart = new Chart(mCtx,{
+    type:'pie', data:{labels:mLabels, datasets:[{data:mData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0']}]},
+    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
   });
 }
 
@@ -390,77 +357,131 @@ document.getElementById('fontSizeSelect').addEventListener('change', e=>{
   document.getElementById('lifeLog').style.fontSize = e.target.value;
 });
 
-// 塔罗牌列表（完整一副）
+// ===== 塔罗占卜 =====
 const tarotDeck = [
-  {name:"愚者",desc:"象征新的开始和冒险，提醒你保持开放心态和勇气面对未知的旅程。"},
-  {name:"魔术师",desc:"象征潜能与创造力，提醒你善用手中的资源去实现目标。"},
-  {name:"女祭司",desc:"象征智慧与直觉，引导你聆听内心深处的声音，保持冷静与理智。"},
-  {name:"皇后",desc:"象征丰饶与关爱，提醒你关注家庭、情感与成长。"},
-  {name:"皇帝",desc:"象征权威与秩序，提示你建立稳定的计划和结构。"},
-{name:"教皇",desc:"象征传统与指导，提醒你寻求智慧与建议，在关键问题上保持道德准则。"},
-{name:"恋人",desc:"象征选择与关系，提示你在情感或重要决定上要慎重考虑。"},
-{name:"战车",desc:"象征意志与胜利，提醒你勇敢前行，掌控自己的方向。"},
-{name:"力量",desc:"象征勇气与耐心，提示你用爱心和信念克服困难。"},
-{name:"隐者",desc:"象征内省与智慧，鼓励你独处思考，寻找内在真理。"},
-{name:"命运之轮",desc:"象征变化与周期，提醒你接受生命的起伏和转变。"},
-{name:"正义",desc:"象征公平与责任，提示你在行动前衡量利弊，做出公正选择。"},
-{name:"倒吊人",desc:"象征反思与等待，提醒你暂时放下控制，换个角度看问题。"},
-{name:"死神",desc:"象征结束与新生，提示你接受改变，迎接新阶段。"},
-{name:"节制",desc:"象征平衡与协调，提醒你掌握适度，保持和谐。"},
-{name:"恶魔",desc:"象征束缚与诱惑，警示你警惕不良习惯或困境。"},
-{name:"塔",desc:"象征突变与觉醒，提醒你面对意外或挑战时保持清醒。"},
-{name:"星星",desc:"象征希望与灵感，鼓励你保持信念和积极心态。"},
-{name:"月亮",desc:"象征潜意识与迷惑，提示你注意直觉与隐藏信息。"},
-{name:"太阳",desc:"象征成功与喜悦，提醒你享受成就和光明。"},
-{name:"审判",desc:"象征觉醒与重生，提示你反思过去，迎接新机遇。"},
-{name:"世界",desc:"象征完成与圆满，提示你取得成果，收获满足。"}
+  // 大阿尔卡那 22 张
+  {name:'愚者', desc:'象征新开始、冒险与自由，提醒你勇敢踏出第一步，拥抱未知的旅程，保持开放心态，接受生活中不可预测的变化。'},
+  {name:'魔术师', desc:'象征创造力与行动力，提醒你灵活运用手头资源和技能，把想法付诸实践，掌握主动权，创造属于自己的机会。'},
+  {name:'女祭司', desc:'象征直觉与智慧，提醒你聆听内心声音，关注潜意识和细节，保持耐心，等待时机，发现隐藏的机会与真相。'},
+  {name:'女皇', desc:'象征丰饶与滋养，提醒你珍惜周围资源，关心他人和自己，注重生活中的美好和舒适，孕育新的创意与机会。'},
+  {name:'皇帝', desc:'象征权威与稳定，提醒你保持纪律和责任感，建立可靠的基础，合理规划人生，勇敢承担决策的后果。'},
+  {name:'教皇', desc:'象征传统与智慧，提醒你遵循价值观和道德准则，寻求指导和支持，保持内心平衡，谨慎做出重大决定。'},
+  {name:'恋人', desc:'象征选择与感情，提醒你关注人际关系和爱情，做出负责任的选择，平衡自我与他人的需求，坦诚沟通。'},
+  {name:'战车', desc:'象征意志力与胜利，提醒你坚定信念，迎接挑战，克服困难，主动掌控局势，通过努力达成目标。'},
+  {name:'力量', desc:'象征勇气与耐心，提醒你以温柔和坚持面对困难，不依赖暴力或强硬手段，通过内在力量化解挑战。'},
+  {name:'隐者', desc:'象征内省与智慧，提醒你静下心来反思人生，寻找方向和真理，远离喧嚣，依靠自身经验做出判断。'},
+  {name:'命运之轮', desc:'象征变化与周期，提醒你顺应环境和时机，把握机会，同时接受生活中不可避免的起伏与转折。'},
+  {name:'正义', desc:'象征公平与平衡，提醒你诚实面对自己和他人的行为，做出公正选择，承担责任，保持内心的道德标准。'},
+  {name:'倒吊人', desc:'象征停顿与反思，提醒你暂缓行动，从不同角度审视问题，接受短暂的不便或牺牲，以获得更高的智慧。'},
+  {name:'死亡', desc:'象征结束与新生，提醒你放下过去，接受变化，结束旧的阶段，为新的生活和机遇腾出空间，实现自我转化。'},
+  {name:'节制', desc:'象征平衡与和谐，提醒你调和内心和外部环境，控制欲望，保持耐心，通过协调与适度实现目标和幸福。'},
+  {name:'恶魔', desc:'象征束缚与诱惑，提醒你警惕不良习惯或情绪的控制，认清依赖与限制，从困境中寻找自由和自我掌控。'},
+  {name:'塔', desc:'象征突发事件和破坏，提醒你面对意外或冲击保持冷静，接受不可控变化，并从中重建更稳固的基础。'},
+  {name:'星星', desc:'象征希望与灵感，提醒你保持信念，积极寻求梦想和灵感，通过乐观和直觉发现新的机会和方向。'},
+  {name:'月亮', desc:'象征迷惑与潜意识，提醒你警惕幻象和欺骗，关注直觉和潜在的情绪波动，深入理解内心的真实感受。'},
+  {name:'太阳', desc:'象征成功与喜悦，提醒你享受生活成果和幸福时光，保持积极态度，充分发挥自身潜能，收获丰盛果实。'},
+  {name:'审判', desc:'象征觉醒与评判，提醒你总结经验，对过去做出反思和评估，迎接新的阶段和成长机会，实现自我提升。'},
+  {name:'世界', desc:'象征完成与圆满，提醒你收获努力成果，达成目标，同时准备开启新的人生阶段，感受整体和谐与满足。'},
+
+  // 小阿尔卡那 56 张
+  {name:'权杖A', desc:'象征新的行动与机会，提醒你积极开拓事业和创意，勇于尝试新的方法，实现潜在目标。'},
+  {name:'权杖2', desc:'象征规划与远见，提醒你制定清晰计划，权衡利弊，准备踏上新的旅程。'},
+  {name:'权杖3', desc:'象征进展与合作，提醒你与他人协作，拓展视野，稳步推进计划。'},
+  {name:'权杖4', desc:'象征庆祝与安定，提醒你享受成果，维护家庭或团队的和谐与稳定。'},
+  {name:'权杖5', desc:'象征竞争与冲突，提醒你正视挑战，保持公平与智慧应对冲突。'},
+  {name:'权杖6', desc:'象征胜利与认可，提醒你努力会得到回报，享受成就与肯定。'},
+  {name:'权杖7', desc:'象征防守与坚持，提醒你坚定立场，捍卫目标，不轻易退缩。'},
+  {name:'权杖8', desc:'象征迅速行动，提醒你把握时机，加快进程，避免拖延。'},
+  {name:'权杖9', desc:'象征警觉与耐心，提醒你做好防护，应对挑战，坚持到底。'},
+  {name:'权杖10', desc:'象征负担与责任，提醒你合理分配精力，避免过度劳累。'},
+  {name:'权杖侍者', desc:'象征新消息与学习，提醒你保持好奇心，迎接新任务和信息。'},
+  {name:'权杖骑士', desc:'象征行动力与热情，提醒你积极追求目标，保持勇气与动力。'},
+  {name:'权杖皇后', desc:'象征领导与热情，提醒你以智慧和热忱管理事务，影响他人。'},
+  {name:'权杖国王', desc:'象征掌控与决策，提醒你承担责任，坚定执行计划。'},
+
+  {name:'圣杯A', desc:'象征情感新开始，提醒你用心去感受，打开情感空间，迎接爱与关怀。'},
+  {name:'圣杯2', desc:'象征关系与合作，提醒你珍惜亲密关系，平衡给予与接受。'},
+  {name:'圣杯3', desc:'象征庆祝与友情，提醒你与朋友或家人共同分享快乐。'},
+  {name:'圣杯4', desc:'象征反思与情绪，提醒你关注内心，理解自己的情感需求。'},
+  {name:'圣杯5', desc:'象征失落与悔恨，提醒你正视遗憾，学会放下，迎接新机遇。'},
+  {name:'圣杯6', desc:'象征回忆与温暖，提醒你从过去经验中获得安慰与启发。'},
+  {name:'圣杯7', desc:'象征幻想与选择，提醒你保持清醒，不被表象迷惑，做出理智判断。'},
+  {name:'圣杯8', desc:'象征离开与成长，提醒你勇敢放下不适合的事物，追寻内心真正需求。'},
+  {name:'圣杯9', desc:'象征满足与心愿，提醒你享受生活，感受幸福与圆满。'},
+  {name:'圣杯10', desc:'象征家庭与和谐，提醒你重视情感纽带，享受温暖和睦的环境。'},
+  {name:'圣杯侍者', desc:'象征消息与感情启示，提醒你留意情感信息和心灵指引。'},
+  {name:'圣杯骑士', desc:'象征浪漫与付出，提醒你积极表达情感，追求心灵契合。'},
+  {name:'圣杯皇后', desc:'象征关怀与同情，提醒你用爱心影响他人，滋养周围关系。'},
+  {name:'圣杯国王', desc:'象征成熟与智慧，提醒你掌握情感和心灵力量，以理智处理事务。'},
+
+  {name:'宝剑A', desc:'象征新的思维与决策，提醒你保持清晰头脑，果断行动。'},
+  {name:'宝剑2', desc:'象征抉择与平衡，提醒你权衡利弊，理智面对冲突。'},
+  {name:'宝剑3', desc:'象征心痛与分离，提醒你正视情感伤害，从痛苦中学习成长。'},
+  {name:'宝剑4', desc:'象征休息与疗愈，提醒你暂时停歇，恢复内心力量。'},
+  {name:'宝剑5', desc:'象征冲突与失败，提醒你谨慎应对争端，不失原则。'},
+  {name:'宝剑6', desc:'象征过渡与放下，提醒你顺势离开困境，寻求更好方向。'},
+  {name:'宝剑7', desc:'象征策略与小心，提醒你灵活应对挑战，谨慎行事。'},
+  {name:'宝剑8', desc:'象征束缚与限制，提醒你正视内心恐惧，寻找突破方法。'},
+  {name:'宝剑9', desc:'象征焦虑与压力，提醒你调整心态，勇敢面对困扰。'},
+  {name:'宝剑10', desc:'象征结束与解脱，提醒你接受失败，结束痛苦循环，为新生腾出空间。'},
+  {name:'宝剑侍者', desc:'象征求知与探索，提醒你保持好奇心，寻求真理与智慧。'},
+  {name:'宝剑骑士', desc:'象征决断与勇气，提醒你坚定目标，果断解决问题。'},
+  {name:'宝剑皇后', desc:'象征智慧与独立，提醒你用理智和判断力处理事务。'},
+  {name:'宝剑国王', desc:'象征权威与策略，提醒你运用智慧和经验做出明智决策。'},
+
+  {name:'钱币A', desc:'象征财富新机遇，提醒你抓住实际利益机会，关注物质与价值成长。'},
+  {name:'钱币2', desc:'象征平衡与协调，提醒你合理安排资源和时间，保持稳定。'},
+  {name:'钱币3', desc:'象征技能与合作，提醒你通过努力与团队合作实现目标。'},
+  {name:'钱币4', desc:'象征保守与节制，提醒你谨慎管理财富，避免过度占有。'},
+  {name:'钱币5', desc:'象征困境与挑战，提醒你面对经济或物质困难时保持坚韧。'},
+  {name:'钱币6', desc:'象征分享与回馈，提醒你适当给予和接受，保持财富流动。'},
+  {name:'钱币7', desc:'象征耐心与积累，提醒你持续努力，慢慢收获成果。'},
+  {name:'钱币8', desc:'象征勤奋与专注，提醒你通过刻苦学习和工作提升技能。'},
+  {name:'钱币9', desc:'象征独立与成就，提醒你享受努力成果，提升自我价值感。'},
+  {name:'钱币10', desc:'象征稳定与传承，提醒你关注家庭和财富传承，规划未来。'},
+  {name:'钱币侍者', desc:'象征学习与机会，提醒你留意实际事务中的新机会与启示。'},
+  {name:'钱币骑士', desc:'象征稳健与踏实，提醒你循序渐进完成任务，保持耐心。'},
+  {name:'钱币皇后', desc:'象征理财与关怀，提醒你善于管理资源，同时关心家人与团队。'},
+  {name:'钱币国王', desc:'象征权威与掌控，提醒你理智管理财富与事业，实现稳健发展。'}
 ];
 
-// 小阿尔卡那牌
-const suits = ["权杖","圣杯","宝剑","钱币"];
-const ranks = ["A","2","3","4","5","6","7","8","9","10","侍从","骑士","皇后","国王"];
-suits.forEach(suit=>{
-  ranks.forEach(rank=>{
-    tarotDeck.push({name:`${suit} ${rank}`, desc:`这张牌象征${suit}系列的能量与${rank}的特质，提示你在相关事务中注意平衡和发展。`});
-  });
-});
+tarotDeck.push(...Array.from({length:56}, (_,i)=>({name:'小阿尔卡那 '+(i+1), desc:'这是一张小阿尔卡那牌，提醒你关注日常事务和情绪。'})));
 
-// 塔罗占卜
-document.getElementById('tarotBtn').addEventListener('click', ()=>{
-  const card = tarotDeck[Math.floor(Math.random()*tarotDeck.length)];
+function drawTarot(){
+  const idx = Math.floor(Math.random()*tarotDeck.length);
+  const card = tarotDeck[idx];
   document.getElementById('tarotResult').textContent = `${card.name}：${card.desc}`;
+}
+
+document.getElementById('tarotBtn').addEventListener('click', drawTarot);
+
+// 日历初始化
+flatpickr("#calendar", {
+  defaultDate: new Date(),
+  onChange: (selectedDates, dateStr, instance) => showDayLogs(selectedDates[0])
 });
 
-// ===== 绑定事件 =====
+// 按钮绑定
 document.getElementById('authButton').addEventListener('click', handleAuth);
 document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
 document.getElementById('historyBtn').addEventListener('click', toggleHistory);
-document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  signOut(auth).then(()=>{currentUser=null;document.getElementById('mainPage').style.display='none';document.getElementById('authForm').style.display='block';});
+});
 document.getElementById('updateChartBtn').addEventListener('click', updateCharts);
 
-// flatpickr 日历
-flatpickr("#calendar", {
-  dateFormat: "Y-m-d",
-  defaultDate: new Date(),
-  minDate: new Date().getFullYear() - 10 + "-01-01",
-  maxDate: new Date(),
-  onChange: function(selectedDates){
-    if(selectedDates.length) showDayLogs(selectedDates[0]);
-  }
-});
-
-// 保持登录状态
-onAuthStateChanged(auth, user => {
+// 监听登录状态
+onAuthStateChanged(auth, user=>{
   if(user){
-    currentUser = user;
-    document.getElementById('authForm').style.display = 'none';
-    document.getElementById('mainPage').style.display = 'flex';
+    currentUser=user;
+    document.getElementById('authForm').style.display='none';
+    document.getElementById('mainPage').style.display='flex';
     loadAllLogs();
   } else {
-    currentUser = null;
-    document.getElementById('authForm').style.display = 'block';
-    document.getElementById('mainPage').style.display = 'none';
+    currentUser=null;
+    document.getElementById('authForm').style.display='block';
+    document.getElementById('mainPage').style.display='none';
   }
 });
 </script>
