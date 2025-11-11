@@ -75,8 +75,55 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
 .flex-col { display:flex; flex-direction:column; gap:5px; }
 .stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
-#tarotResult { background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:50px; margin-top:5px; }
 canvas { max-width:100%; height:200px; margin-top:10px; }
+
+/* 塔罗牌样式 */
+#tarotDeckContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.tarot-card {
+  width: 80px;
+  height: 120px;
+  perspective: 600px;
+  cursor: pointer;
+}
+.tarot-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+.tarot-card.show-details .tarot-card-inner {
+  transform: rotateY(180deg);
+}
+.tarot-card-front, .tarot-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 0.7rem;
+  padding: 5px;
+}
+.tarot-card-front {
+  background: #333;
+}
+.tarot-card-back {
+  background: #444;
+  transform: rotateY(180deg);
+  flex-direction: column;
+}
+.tarot-card-back .title { font-weight:bold; margin-bottom:5px; font-size:0.8rem; }
+.tarot-card-back .details { font-size:0.65rem; }
 </style>
 </head>
 <body>
@@ -129,6 +176,7 @@ canvas { max-width:100%; height:200px; margin-top:10px; }
         <option value="😡 生气">😡 生气</option>
         <option value="😴 疲惫">😴 疲惫</option>
       </select>
+      <button id="uploadMoodBtn">上传心情</button>
     </div>
 
     <div class="flex-col">
@@ -140,12 +188,12 @@ canvas { max-width:100%; height:200px; margin-top:10px; }
         <option value="⛄ 雪天">⛄ 雪天</option>
         <option value="🌫️ 雾天">🌫️ 雾天</option>
       </select>
+      <button id="uploadWeatherBtn">上传天气</button>
     </div>
 
     <div class="flex-col">
       <label>塔罗占卜</label>
-      <button id="tarotBtn">开始占卜</button>
-      <div id="tarotResult"></div>
+      <div id="tarotDeckContainer"></div>
     </div>
 
     <button id="logoutBtn" style="background:#f44336;">注销</button>
@@ -195,7 +243,7 @@ canvas { max-width:100%; height:200px; margin-top:10px; }
 <script type="module">
 // Firebase 初始化
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -244,16 +292,30 @@ function addLifeLog() {
   const text = document.getElementById('lifeLog').value.trim();
   if (!text) return alert('日志不能为空');
   if (!currentUser) return alert('请先登录');
-  const mood = document.getElementById('moodSelect').value;
-  const weather = document.getElementById('weatherSelect').value;
-
   addDoc(collection(db, 'logs'), {
     uid: currentUser.uid,
-    text, mood, weather, ts: Date.now()
+    text, ts: Date.now()
   }).then(()=> {
     document.getElementById('lifeLog').value = '';
     loadAllLogs();
   }).catch(err => alert('上传失败: '+err.message));
+}
+
+// 上传心情或天气
+async function uploadMoodWeather(type){
+  if(!currentUser) return alert('请先登录');
+  const date = new Date();
+  const start = new Date(date); start.setHours(0,0,0,0);
+  const end = new Date(date); end.setHours(23,59,59,999);
+  const q = query(collection(db,'logs'), where('uid','==',currentUser.uid));
+  const snapshot = await getDocs(q);
+  let todayDoc = snapshot.docs.find(doc=>doc.data().ts >= start.getTime() && doc.data().ts <= end.getTime());
+  if(!todayDoc){
+    todayDoc = await addDoc(collection(db,'logs'), { uid:currentUser.uid, ts:Date.now() });
+  }
+  const docRef = todayDoc.ref || doc(db,'logs',todayDoc.id);
+  const value = type==='mood'?document.getElementById('moodSelect').value:document.getElementById('weatherSelect').value;
+  updateDoc(docRef,{ [type]: value }).then(loadAllLogs);
 }
 
 // 加载日志
@@ -272,7 +334,7 @@ async function loadAllLogs() {
 
   allLogs.forEach((doc,i)=>{
     const li = document.createElement('li');
-    li.textContent = `${doc.text} [${doc.mood} ${doc.weather}]`;
+    li.textContent = `${doc.text || ''} [${doc.mood||''} ${doc.weather||''}]`;
     if(i<5) recentLogs.appendChild(li);
     historyLogs.appendChild(li.cloneNode(true));
   });
@@ -285,15 +347,14 @@ function showDayLogs(date){
   const dayLogs = document.getElementById('dayLogs'); dayLogs.innerHTML = '';
   const start = new Date(date); start.setHours(0,0,0,0);
   const end = new Date(date); end.setHours(23,59,59,999);
-
   const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
   if(logs.length){ const latest = logs[0];
-    document.getElementById('moodSelect').value = latest.mood;
-    document.getElementById('weatherSelect').value = latest.weather;
+    if(latest.mood) document.getElementById('moodSelect').value = latest.mood;
+    if(latest.weather) document.getElementById('weatherSelect').value = latest.weather;
   }
   logs.forEach(d=>{
     const li = document.createElement('li');
-    li.textContent = `${d.text} [${d.mood} ${d.weather}]`;
+    li.textContent = `${d.text || ''} [${d.mood||''} ${d.weather||''}]`;
     dayLogs.appendChild(li);
   });
 }
@@ -328,7 +389,7 @@ function updateCharts(){
 
   // 天气统计
   const weatherCounts = {};
-  filtered.forEach(d=>{ weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1; });
+  filtered.forEach(d=>{ if(d.weather) weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1; });
   const wLabels = Object.keys(weatherCounts), wData = Object.values(weatherCounts);
   const wCtx = document.getElementById('weatherChart').getContext('2d');
   if(weatherChart) weatherChart.destroy();
@@ -339,152 +400,153 @@ function updateCharts(){
 
   // 心情统计
   const moodCounts = {};
-  filtered.forEach(d=>{ moodCounts[d.mood] = (moodCounts[d.mood]||0)+1; });
+  filtered.forEach(d=>{ if(d.mood) moodCounts[d.mood] = (moodCounts[d.mood]||0)+1; });
   const mLabels = Object.keys(moodCounts), mData = Object.values(moodCounts);
   const mCtx = document.getElementById('moodChart').getContext('2d');
   if(moodChart) moodChart.destroy();
   moodChart = new Chart(mCtx,{
-    type:'pie', data:{labels:mLabels, datasets:[{data:mData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0']}]},
+    type:'pie', data:{labels:mLabels, datasets:[{data:mData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF']}]},
     options:{responsive:true, plugins:{legend:{position:'bottom'}}}
   });
 }
 
-// 字体选择
-document.getElementById('fontSelect').addEventListener('change', e=>{
-  document.getElementById('lifeLog').style.fontFamily = e.target.value;
-});
-document.getElementById('fontSizeSelect').addEventListener('change', e=>{
-  document.getElementById('lifeLog').style.fontSize = e.target.value;
-});
+// 初始化日期选择
+flatpickr("#calendar",{ defaultDate:new Date(), onChange:[function(selectedDates){ showDayLogs(selectedDates[0]); }] });
 
-// ===== 塔罗占卜 =====
-// 塔罗牌完整数组（大阿尔卡那 + 小阿尔卡那完整56张）
+// 塔罗牌数据
 const tarotDeck = [
-  // 大阿尔卡那 22 张
-  {name:"愚者",desc:"愚者象征新开始、纯真与自由，代表着敢于冒险和信任自己，面对未知勇敢踏出第一步。"},
-  {name:"魔术师",desc:"魔术师代表创造力与行动力，意味着你有能力将想法付诸实践，实现目标。"},
-  {name:"女祭司",desc:"女祭司象征智慧与直觉，提醒你倾听内心声音，探索未知奥秘。"},
-  {name:"女皇",desc:"女皇象征丰饶与创造，鼓励你发挥潜能，培养爱与关怀。"},
-  {name:"皇帝",desc:"皇帝象征掌控与秩序，提示你建立结构与纪律，稳定局面。"},
-  {name:"教皇",desc:"教皇象征传统与指导，提醒你寻求支持，理解规则与信念。"},
-  {name:"恋人",desc:"恋人牌代表关系与选择，暗示你在感情或重要决策上需权衡利弊。"},
-  {name:"战车",desc:"战车象征意志力与胜利，意味着克服困难，勇往直前。"},
-  {name:"力量",desc:"力量牌象征内在勇气与信心，提示你用温柔与耐心面对挑战。"},
-  {name:"隐者",desc:"隐者牌代表沉思与内省，鼓励你独处反思，寻找答案。"},
-  {name:"命运之轮",desc:"命运之轮象征变化与循环，提醒你顺应时势，抓住机会。"},
-  {name:"正义",desc:"正义牌代表公平与责任，提示你考虑行为后果，追求平衡。"},
-  {name:"倒吊人",desc:"倒吊人牌象征暂停与反思，提醒你从不同角度看待问题。"},
-  {name:"死亡",desc:"死亡牌象征结束与转化，意味着放下过去，迎接新开始。"},
-  {name:"节制",desc:"节制牌代表平衡与协调，提示你调节心态，寻求和谐。"},
-  {name:"恶魔",desc:"恶魔牌象征诱惑与束缚，提醒你警觉成瘾或不良依赖。"},
-  {name:"塔",desc:"塔牌象征突变与觉醒，意味着意外事件带来改变和成长。"},
-  {name:"星星",desc:"星星牌代表希望与灵感，鼓励你保持信念和追求梦想。"},
-  {name:"月亮",desc:"月亮牌象征幻象与潜意识，提示关注内在情绪和直觉。"},
-  {name:"太阳",desc:"太阳牌象征光明与活力，带来成功、喜悦与满足感。"},
-  {name:"审判",desc:"审判牌象征觉醒与反思，意味着自我评估和新的机遇。"},
-  {name:"世界",desc:"世界牌象征完成与圆满，提醒你庆祝成就，迈向新阶段。"},
-
-  // 小阿尔卡那 56 张
-  // 权杖
-  {name:"权杖一",desc:"权杖一象征新机会与行动，提示你把握时机，勇敢尝试。"},
-  {name:"权杖二",desc:"权杖二象征计划与决策，鼓励你规划未来，坚定方向。"},
-  {name:"权杖三",desc:"权杖三象征远景与拓展，暗示你要关注长远目标。"},
-  {name:"权杖四",desc:"权杖四象征庆祝与稳定，提醒你享受成果和团结。"},
-  {name:"权杖五",desc:"权杖五象征竞争与挑战，提示你积极应对冲突和竞争。"},
-  {name:"权杖六",desc:"权杖六象征胜利与认可，鼓励你展示能力和成果。"},
-  {name:"权杖七",desc:"权杖七象征防御与坚持，提示你维护立场与原则。"},
-  {name:"权杖八",desc:"权杖八象征迅速发展，提醒你抓住快速变化的机会。"},
-  {name:"权杖九",desc:"权杖九象征坚持与耐力，提示你面对困难不轻言放弃。"},
-  {name:"权杖十",desc:"权杖十象征压力与责任，提醒你合理分担重担。"},
-  {name:"权杖侍者",desc:"权杖侍者象征新信息与探索，鼓励你主动学习和尝试。"},
-  {name:"权杖骑士",desc:"权杖骑士象征冒险与行动，提示你追求热情目标。"},
-  {name:"权杖女王",desc:"权杖女王象征自信与魅力，鼓励你展现个人能力。"},
-  {name:"权杖国王",desc:"权杖国王象征领导力与远见，提示你统筹全局和引导团队。"},
-
-  // 圣杯
-  {name:"圣杯一",desc:"圣杯一象征爱与情感的开始，鼓励你敞开心扉，接受美好情感。"},
-  {name:"圣杯二",desc:"圣杯二象征合作与亲密关系，提示你建立和谐的伙伴关系。"},
-  {name:"圣杯三",desc:"圣杯三象征庆祝与友情，鼓励你享受社交和团体的欢乐。"},
-  {name:"圣杯四",desc:"圣杯四象征反思与内心不满，提醒你审视情感需求。"},
-  {name:"圣杯五",desc:"圣杯五象征失落与遗憾，提示你从失落中汲取经验。"},
-  {name:"圣杯六",desc:"圣杯六象征怀旧与温情，鼓励你珍视过去的美好记忆。"},
-  {name:"圣杯七",desc:"圣杯七象征幻想与选择，提醒你理性辨别机会与诱惑。"},
-  {name:"圣杯八",desc:"圣杯八象征离开与放下，提示你结束不再满足的关系或事务。"},
-  {name:"圣杯九",desc:"圣杯九象征满足与愿望实现，鼓励你享受收获与幸福。"},
-  {name:"圣杯十",desc:"圣杯十象征家庭与情感圆满，提示你珍惜身边幸福。"},
-  {name:"圣杯侍者",desc:"圣杯侍者象征感情消息与新体验，鼓励你表达感情和关怀。"},
-  {name:"圣杯骑士",desc:"圣杯骑士象征浪漫与追求，提示你主动争取心中所爱。"},
-  {name:"圣杯女王",desc:"圣杯女王象征温柔与理解，鼓励你用爱与智慧处理事务。"},
-  {name:"圣杯国王",desc:"圣杯国王象征平衡与责任，提示你理性处理感情和关系。"},
-
-  // 宝剑
-  {name:"宝剑一",desc:"宝剑一象征决断与突破，鼓励你做出明确选择。"},
-  {name:"宝剑二",desc:"宝剑二象征平衡与权衡，提示你慎重考虑各方因素。"},
-  {name:"宝剑三",desc:"宝剑三象征心痛与挑战，提醒你直面困难并寻求解决。"},
-  {name:"宝剑四",desc:"宝剑四象征休息与恢复，提示你暂时停下积蓄力量。"},
-  {name:"宝剑五",desc:"宝剑五象征冲突与胜负，提醒你注意策略和利益得失。"},
-  {name:"宝剑六",desc:"宝剑六象征过渡与离开，提示你离开困境前往新方向。"},
-  {name:"宝剑七",desc:"宝剑七象征策略与智慧，鼓励你用巧妙方法解决问题。"},
-  {name:"宝剑八",desc:"宝剑八象征束缚与限制，提醒你克服困境和内心障碍。"},
-  {name:"宝剑九",desc:"宝剑九象征焦虑与忧虑，提示你面对内心恐惧。"},
-  {name:"宝剑十",desc:"宝剑十象征结束与崩解，提醒你放下旧有压力迎接新局。"},
-  {name:"宝剑侍者",desc:"宝剑侍者象征好奇与学习，鼓励你掌握知识并沟通信息。"},
-  {name:"宝剑骑士",desc:"宝剑骑士象征果断行动，提示你快速而有力地解决问题。"},
-  {name:"宝剑女王",desc:"宝剑女王象征理智与明晰，提醒你用头脑而非情绪处理事务。"},
-  {name:"宝剑国王",desc:"宝剑国王象征权威与判断，提示你以智慧和经验引导他人。"},
-
-  // 金币
-  {name:"金币一",desc:"金币一象征新的财务机会或学习，鼓励你实践和积累资源。"},
-  {name:"金币二",desc:"金币二象征平衡与管理，提示你合理安排金钱和时间。"},
-  {name:"金币三",desc:"金币三象征技能与合作，鼓励你通过努力获得认可。"},
-  {name:"金币四",desc:"金币四象征守护与节制，提醒你谨慎管理资源。"},
-  {name:"金币五",desc:"金币五象征困难与失落，提示你面对经济或健康挑战。"},
-  {name:"金币六",desc:"金币六象征慷慨与回报，鼓励你帮助他人并获得平衡。"},
-  {name:"金币七",desc:"金币七象征耐心与耕耘，提示你坚持努力等待成果。"},
-  {name:"金币八",desc:"金币八象征专注与技能提升，鼓励你精益求精。"},
-  {name:"金币九",desc:"金币九象征独立与成就，提示你享受自力更生带来的成果。"},
-  {name:"金币十",desc:"金币十象征财富与稳定，鼓励你建立长远财务规划。"},
-  {name:"金币侍者",desc:"金币侍者象征学习与实践，提示你从基础积累知识和技能。"},
-  {name:"金币骑士",desc:"金币骑士象征踏实与努力，提醒你稳步前进，不急不躁。"},
-  {name:"金币女王",desc:"金币女王象征理财与关怀，鼓励你善于管理财富并照顾他人。"},
-  {name:"金币国王",desc:"金币国王象征权威与掌控，提示你有能力统筹资源和团队。"},
+  { name: "愚者", upright: "新的开始，天真无畏，冒险精神", reversed: "鲁莽，缺乏计划，轻率" },
+  { name: "魔术师", upright: "创造力、行动力、潜能发挥", reversed: "欺骗、浪费机会、潜能未用" },
+  { name: "女祭司", upright: "直觉、神秘、智慧", reversed: "秘密被揭露、迷茫、缺乏洞察力" },
+  { name: "皇后", upright: "丰盛、孕育、爱与关怀", reversed: "依赖、情感压抑、创意阻塞" },
+  { name: "皇帝", upright: "权力、掌控、稳定", reversed: "专制、刚愎、自律不足" },
+  { name: "教皇", upright: "传统、指导、信仰", reversed: "偏见、教条、迷失方向" },
+  { name: "恋人", upright: "爱情、选择、关系", reversed: "错过机会、冲突、诱惑" },
+  { name: "战车", upright: "胜利、意志、控制", reversed: "失控、失败、阻碍" },
+  { name: "力量", upright: "勇气、耐心、内在力量", reversed: "软弱、缺乏信心、暴躁" },
+  { name: "隐者", upright: "沉思、内省、孤独", reversed: "孤立、逃避、迷失方向" },
+  { name: "命运之轮", upright: "变化、循环、机遇", reversed: "阻力、坏运、停滞" },
+  { name: "正义", upright: "公平、平衡、因果", reversed: "不公、偏见、逃避责任" },
+  { name: "倒吊人", upright: "牺牲、反思、等待", reversed: "停滞、抵抗、逃避" },
+  { name: "死亡", upright: "结束、新生、转变", reversed: "抗拒变化、停滞、不愿放手" },
+  { name: "节制", upright: "平衡、和谐、节制", reversed: "失衡、极端、冲动" },
+  { name: "恶魔", upright: "束缚、诱惑、依赖", reversed: "解脱、觉醒、克服欲望" },
+  { name: "塔", upright: "突发变化、动荡、觉醒", reversed: "灾难延迟、抗拒改变、混乱" },
+  { name: "星星", upright: "希望、灵感、治愈", reversed: "失望、迷茫、缺乏信心" },
+  { name: "月亮", upright: "直觉、潜意识、迷惑", reversed: "困惑、欺骗、情绪波动" },
+  { name: "太阳", upright: "成功、喜悦、光明", reversed: "延迟、挫折、阴影" },
+  { name: "审判", upright: "觉醒、重生、评估", reversed: "逃避责任、延迟觉醒" },
+  { name: "世界", upright: "完成、圆满、成就", reversed: "未完成、拖延、闭环未达" },
+  // 小阿尔克那 — 权杖
+  { name: "权杖王牌", upright: "新机会、热情、行动", reversed: "缺乏动力、延迟、挫折" },
+  { name: "权杖二", upright: "规划、远见、选择", reversed: "犹豫、停滞、保守" },
+  { name: "权杖三", upright: "进展、冒险、探索", reversed: "延迟、障碍、退缩" },
+  { name: "权杖四", upright: "庆祝、稳定、团结", reversed: "冲突、不和、失衡" },
+  { name: "权杖五", upright: "竞争、冲突、挑战", reversed: "和解、妥协、避免争斗" },
+  { name: "权杖六", upright: "胜利、认可、自信", reversed: "失败、挫折、延迟" },
+  { name: "权杖七", upright: "防守、坚持、保护", reversed: "放弃、退缩、脆弱" },
+  { name: "权杖八", upright: "速度、行动、沟通", reversed: "延迟、阻碍、混乱" },
+  { name: "权杖九", upright: "防御、坚持、勇气", reversed: "脆弱、恐惧、困境" },
+  { name: "权杖十", upright: "负担、责任、压力", reversed: "释放、减轻、调整" },
+  { name: "权杖侍者", upright: "新消息、热情、学习", reversed: "消息延迟、幼稚、失误" },
+  { name: "权杖骑士", upright: "冒险、冲动、行动", reversed: "鲁莽、失控、延误" },
+  { name: "权杖皇后", upright: "热情、领导、创造力", reversed: "控制欲、任性、冲动" },
+  { name: "权杖国王", upright: "权威、决策、领导", reversed: "专制、刚愎、失衡" },
+  // 小阿尔克那 — 圣杯
+  { name: "圣杯王牌", upright: "爱情、感情、灵感", reversed: "情感阻塞、失望、孤单" },
+  { name: "圣杯二", upright: "合作、爱情、和谐", reversed: "分离、冲突、误解" },
+  { name: "圣杯三", upright: "庆祝、友情、交流", reversed: "争执、误解、孤独" },
+  { name: "圣杯四", upright: "沉思、感情调整、内省", reversed: "闭塞、冷漠、失去机会" },
+  { name: "圣杯五", upright: "失落、遗憾、悲伤", reversed: "走出阴影、释怀、疗愈" },
+  { name: "圣杯六", upright: "怀旧、回忆、童年", reversed: "执着过去、停滞、逃避" },
+  { name: "圣杯七", upright: "幻想、选择、诱惑", reversed: "清晰、现实、决断" },
+  { name: "圣杯八", upright: "离开、追寻、探索", reversed: "逃避、迷失、困顿" },
+  { name: "圣杯九", upright: "满足、愿望、幸福", reversed: "失落、虚荣、不满足" },
+  { name: "圣杯十", upright: "圆满、家庭、和谐", reversed: "家庭冲突、情感破裂" },
+  { name: "圣杯侍者", upright: "消息、探索、心灵发展", reversed: "消息延迟、情绪不稳" },
+  { name: "圣杯骑士", upright: "浪漫、追求、情感行动", reversed: "冲动、迷惑、情感不稳" },
+  { name: "圣杯皇后", upright: "爱心、关怀、感性", reversed: "情绪波动、依赖、脆弱" },
+  { name: "圣杯国王", upright: "成熟、情感稳定、关爱", reversed: "冷漠、控制、压抑" },
+  // 小阿尔克那 — 宝剑
+  { name: "宝剑王牌", upright: "真相、决断、智慧", reversed: "误解、谎言、犹豫" },
+  { name: "宝剑二", upright: "平衡、选择、困境", reversed: "混乱、逃避、冲突" },
+  { name: "宝剑三", upright: "心碎、痛苦、分离", reversed: "疗愈、恢复、释怀" },
+  { name: "宝剑四", upright: "休息、反思、疗愈", reversed: "停滞、无休止压力" },
+  { name: "宝剑五", upright: "冲突、失败、争执", reversed: "和解、避免冲突" },
+  { name: "宝剑六", upright: "过渡、移动、恢复", reversed: "停滞、拖延、阻碍" },
+  { name: "宝剑七", upright: "策略、隐瞒、机智", reversed: "欺骗被发现、失败" },
+  { name: "宝剑八", upright: "限制、束缚、困境", reversed: "突破、解脱、勇气" },
+  { name: "宝剑九", upright: "焦虑、恐惧、失眠", reversed: "恢复、放松、清醒" },
+  { name: "宝剑十", upright: "结束、背叛、痛苦", reversed: "缓解、解脱、重新开始" },
+  { name: "宝剑侍者", upright: "观察、沟通、学习", reversed: "误解、消息延迟" },
+  { name: "宝剑骑士", upright: "行动、决断、勇气", reversed: "冲动、鲁莽、争执" },
+  { name: "宝剑皇后", upright: "智慧、公正、独立", reversed: "冷酷、苛刻、批判" },
+  { name: "宝剑国王", upright: "权威、逻辑、决策", reversed: "专横、残酷、滥用权力" },
+  // 小阿尔克那 — 钱币
+  { name: "钱币王牌", upright: "财富、新机会、物质稳定", reversed: "机会延迟、浪费、物质焦虑" },
+  { name: "钱币二", upright: "平衡、灵活、适应", reversed: "混乱、失衡、犹豫" },
+  { name: "钱币三", upright: "合作、技能、团队", reversed: "冲突、缺乏合作、低效" },
+  { name: "钱币四", upright: "稳定、守财、积累", reversed: "贪婪、固执、浪费" },
+  { name: "钱币五", upright: "困难、贫困、挑战", reversed: "改善、恢复、克服困境" },
+  { name: "钱币六", upright: "给予、分享、帮助", reversed: "不平等、索取、滥用" },
+  { name: "钱币七", upright: "等待、评估、努力", reversed: "急躁、失望、放弃" },
+  { name: "钱币八", upright: "勤奋、专注、技能提升", reversed: "偷懒、敷衍、停滞" },
+  { name: "钱币九", upright: "自立、享受成果、独立", reversed: "虚荣、孤立、贪婪" },
+  { name: "钱币十", upright: "财富、家庭、稳定", reversed: "家庭冲突、浪费、依赖" },
+  { name: "钱币侍者", upright: "学习、财务消息、成长", reversed: "延迟、错误、缺乏经验" },
+  { name: "钱币骑士", upright: "踏实、努力、耐心", reversed: "懒惰、拖延、固执" },
+  { name: "钱币皇后", upright: "实际、关怀、财富管理", reversed: "吝啬、过度关注物质" },
+  { name: "钱币国王", upright: "稳定、成功、智慧", reversed: "固执、专横、失衡" }
 ];
-  
-function drawTarot(){
-  const idx = Math.floor(Math.random()*tarotDeck.length);
-  const card = tarotDeck[idx];
-  document.getElementById('tarotResult').textContent = `${card.name}：${card.desc}`;
+
+// 渲染塔罗牌
+function renderTarotDeck(){
+  const container = document.getElementById('tarotDeckContainer');
+  container.innerHTML = '';
+  tarotDeck.forEach(card=>{
+    const cardEl = document.createElement('div');
+    cardEl.className = 'tarot-card';
+    cardEl.innerHTML = `
+      <div class="tarot-card-inner">
+        <div class="tarot-card-front">牌背</div>
+        <div class="tarot-card-back">
+          <div class="title">${card.name}</div>
+          <div class="details">${card.desc}</div>
+        </div>
+      </div>`;
+    cardEl.onclick = ()=>{ cardEl.classList.toggle('show-details'); }
+    container.appendChild(cardEl);
+  });
 }
 
-document.getElementById('tarotBtn').addEventListener('click', drawTarot);
-
-// 日历初始化
-flatpickr("#calendar", {
-  defaultDate: new Date(),
-  onChange: (selectedDates, dateStr, instance) => showDayLogs(selectedDates[0])
-});
-
-// 按钮绑定
-document.getElementById('authButton').addEventListener('click', handleAuth);
-document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
-document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
-document.getElementById('historyBtn').addEventListener('click', toggleHistory);
-document.getElementById('logoutBtn').addEventListener('click', ()=>{
-  signOut(auth).then(()=>{currentUser=null;document.getElementById('mainPage').style.display='none';document.getElementById('authForm').style.display='block';});
-});
-document.getElementById('updateChartBtn').addEventListener('click', updateCharts);
+// 初始化
+document.getElementById('authButton').onclick = handleAuth;
+document.getElementById('toggleAuth').onclick = toggleAuthForm;
+document.getElementById('uploadBtn').onclick = addLifeLog;
+document.getElementById('uploadMoodBtn').onclick = ()=>uploadMoodWeather('mood');
+document.getElementById('uploadWeatherBtn').onclick = ()=>uploadMoodWeather('weather');
+document.getElementById('historyBtn').onclick = toggleHistory;
+document.getElementById('updateChartBtn').onclick = updateCharts;
+document.getElementById('logoutBtn').onclick = ()=>{
+  signOut(auth).then(()=>{
+    currentUser = null;
+    document.getElementById('mainPage').style.display='none';
+    document.getElementById('authForm').style.display='block';
+  });
+};
 
 // 监听登录状态
-onAuthStateChanged(auth, user=>{
+onAuthStateChanged(auth,user=>{
   if(user){
-    currentUser=user;
-    document.getElementById('authForm').style.display='none';
+    currentUser = user;
     document.getElementById('mainPage').style.display='flex';
+    document.getElementById('authForm').style.display='none';
     loadAllLogs();
+    renderTarotDeck();
   } else {
-    currentUser=null;
-    document.getElementById('authForm').style.display='block';
+    currentUser = null;
     document.getElementById('mainPage').style.display='none';
+    document.getElementById('authForm').style.display='block';
   }
 });
 </script>
