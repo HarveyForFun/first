@@ -76,7 +76,7 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
 .flex-col { display:flex; flex-direction:column; gap:5px; }
 .stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
-.tarot-result { margin-top:10px; background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:60px; }
+#tarotResult { margin-top:10px; background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:60px; }
 </style>
 </head>
 <body>
@@ -146,7 +146,7 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     <div class="flex-col">
       <label>塔罗占卜</label>
       <button id="tarotBtn">开始占卜</button>
-      <div class="tarot-result" id="tarotResult"></div>
+      <div id="tarotResult"></div>
     </div>
 
     <button id="logoutBtn" style="background:#f44336;">注销</button>
@@ -158,13 +158,28 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
     <button id="uploadBtn">上传日志</button>
 
-    <div class="stats" style="display:flex; gap:20px; justify-content:center;">
-      <canvas id="weatherChart" width="150" height="150"></canvas>
-      <canvas id="moodChart" width="150" height="150"></canvas>
-    </div>
-
     <h3>当天日志</h3>
     <ul id="dayLogs"></ul>
+
+    <!-- 横向统计 -->
+    <div class="stats" id="statsSection">
+      <h3>统计</h3>
+      <div style="display:flex; gap:10px; justify-content:space-around;">
+        <canvas id="weatherChart" width="150" height="150"></canvas>
+        <canvas id="moodChart" width="150" height="150"></canvas>
+      </div>
+      <label>选择年份</label>
+      <select id="statYearSelect"></select>
+      <label>选择月份</label>
+      <select id="statMonthSelect">
+        <option value="all">全部</option>
+        <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option>
+        <option value="3">4月</option><option value="4">5月</option><option value="5">6月</option>
+        <option value="6">7月</option><option value="7">8月</option><option value="8">9月</option>
+        <option value="9">10月</option><option value="10">11月</option><option value="11">12月</option>
+      </select>
+      <button id="updateChartBtn">更新统计</button>
+    </div>
   </div>
 
   <!-- 右侧栏 -->
@@ -326,50 +341,44 @@ function initStatYearSelect(){
   });
 }
 
-// 更新天气和心情饼图
-function updateCharts(){
+// 更新双饼图
+function updateCharts() {
   const year = parseInt(document.getElementById('statYearSelect').value);
   const month = document.getElementById('statMonthSelect').value;
 
-  let filtered = allLogs.filter(d=>{
+  let filtered = allLogs.filter(d => {
     const date = new Date(d.ts);
     if(date.getFullYear()!==year) return false;
     if(month!=='all' && date.getMonth()!==parseInt(month)) return false;
     return true;
   });
 
-  // 天气统计
+  // 天气饼图
   const weatherCounts = {};
-  filtered.forEach(d=>{
-    weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1;
-  });
+  filtered.forEach(d=> weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1 );
   const weatherLabels = Object.keys(weatherCounts);
   const weatherData = Object.values(weatherCounts);
 
-  // 心情统计
-  const moodCounts = {};
-  filtered.forEach(d=>{
-    moodCounts[d.mood] = (moodCounts[d.mood]||0)+1;
+  const ctxW = document.getElementById('weatherChart').getContext('2d');
+  if(window.weatherChart) window.weatherChart.destroy();
+  window.weatherChart = new Chart(ctxW, {
+    type:'pie',
+    data:{ labels:weatherLabels, datasets:[{ data:weatherData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
+    options:{ responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
   });
+
+  // 心情饼图
+  const moodCounts = {};
+  filtered.forEach(d=> moodCounts[d.mood] = (moodCounts[d.mood]||0)+1 );
   const moodLabels = Object.keys(moodCounts);
   const moodData = Object.values(moodCounts);
 
-  // 销毁已有图表
-  if(weatherChart) weatherChart.destroy();
-  if(moodChart) moodChart.destroy();
-
-  const weatherCtx = document.getElementById('weatherChart').getContext('2d');
-  weatherChart = new Chart(weatherCtx, {
-    type: 'pie',
-    data: { labels: weatherLabels, datasets:[{ data: weatherData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
-    options: { responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
-  });
-
-  const moodCtx = document.getElementById('moodChart').getContext('2d');
-  moodChart = new Chart(moodCtx, {
-    type: 'pie',
-    data: { labels: moodLabels, datasets:[{ data: moodData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#FFCE56','#4BC0C0'] }] },
-    options: { responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+  const ctxM = document.getElementById('moodChart').getContext('2d');
+  if(window.moodChart) window.moodChart.destroy();
+  window.moodChart = new Chart(ctxM, {
+    type:'pie',
+    data:{ labels:moodLabels, datasets:[{ data:moodData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0'] }] },
+    options:{ responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
   });
 }
 
@@ -381,110 +390,54 @@ document.getElementById('fontSizeSelect').addEventListener('change', e=>{
   document.getElementById('lifeLog').style.fontSize = e.target.value;
 });
 
-// 塔罗牌
-// 塔罗牌完整数组（大阿尔卡那 + 小阿尔卡那完整56张）
+// 塔罗牌列表（完整一副）
 const tarotDeck = [
-  // 大阿尔卡那 22 张
-  {name:"愚者",desc:"愚者象征新开始、纯真与自由，代表着敢于冒险和信任自己，面对未知勇敢踏出第一步。"},
-  {name:"魔术师",desc:"魔术师代表创造力与行动力，意味着你有能力将想法付诸实践，实现目标。"},
-  {name:"女祭司",desc:"女祭司象征智慧与直觉，提醒你倾听内心声音，探索未知奥秘。"},
-  {name:"女皇",desc:"女皇象征丰饶与创造，鼓励你发挥潜能，培养爱与关怀。"},
-  {name:"皇帝",desc:"皇帝象征掌控与秩序，提示你建立结构与纪律，稳定局面。"},
-  {name:"教皇",desc:"教皇象征传统与指导，提醒你寻求支持，理解规则与信念。"},
-  {name:"恋人",desc:"恋人牌代表关系与选择，暗示你在感情或重要决策上需权衡利弊。"},
-  {name:"战车",desc:"战车象征意志力与胜利，意味着克服困难，勇往直前。"},
-  {name:"力量",desc:"力量牌象征内在勇气与信心，提示你用温柔与耐心面对挑战。"},
-  {name:"隐者",desc:"隐者牌代表沉思与内省，鼓励你独处反思，寻找答案。"},
-  {name:"命运之轮",desc:"命运之轮象征变化与循环，提醒你顺应时势，抓住机会。"},
-  {name:"正义",desc:"正义牌代表公平与责任，提示你考虑行为后果，追求平衡。"},
-  {name:"倒吊人",desc:"倒吊人牌象征暂停与反思，提醒你从不同角度看待问题。"},
-  {name:"死亡",desc:"死亡牌象征结束与转化，意味着放下过去，迎接新开始。"},
-  {name:"节制",desc:"节制牌代表平衡与协调，提示你调节心态，寻求和谐。"},
-  {name:"恶魔",desc:"恶魔牌象征诱惑与束缚，提醒你警觉成瘾或不良依赖。"},
-  {name:"塔",desc:"塔牌象征突变与觉醒，意味着意外事件带来改变和成长。"},
-  {name:"星星",desc:"星星牌代表希望与灵感，鼓励你保持信念和追求梦想。"},
-  {name:"月亮",desc:"月亮牌象征幻象与潜意识，提示关注内在情绪和直觉。"},
-  {name:"太阳",desc:"太阳牌象征光明与活力，带来成功、喜悦与满足感。"},
-  {name:"审判",desc:"审判牌象征觉醒与反思，意味着自我评估和新的机遇。"},
-  {name:"世界",desc:"世界牌象征完成与圆满，提醒你庆祝成就，迈向新阶段。"},
-
-  // 小阿尔卡那 56 张
-  // 权杖
-  {name:"权杖一",desc:"权杖一象征新机会与行动，提示你把握时机，勇敢尝试。"},
-  {name:"权杖二",desc:"权杖二象征计划与决策，鼓励你规划未来，坚定方向。"},
-  {name:"权杖三",desc:"权杖三象征远景与拓展，暗示你要关注长远目标。"},
-  {name:"权杖四",desc:"权杖四象征庆祝与稳定，提醒你享受成果和团结。"},
-  {name:"权杖五",desc:"权杖五象征竞争与挑战，提示你积极应对冲突和竞争。"},
-  {name:"权杖六",desc:"权杖六象征胜利与认可，鼓励你展示能力和成果。"},
-  {name:"权杖七",desc:"权杖七象征防御与坚持，提示你维护立场与原则。"},
-  {name:"权杖八",desc:"权杖八象征迅速发展，提醒你抓住快速变化的机会。"},
-  {name:"权杖九",desc:"权杖九象征坚持与耐力，提示你面对困难不轻言放弃。"},
-  {name:"权杖十",desc:"权杖十象征压力与责任，提醒你合理分担重担。"},
-  {name:"权杖侍者",desc:"权杖侍者象征新信息与探索，鼓励你主动学习和尝试。"},
-  {name:"权杖骑士",desc:"权杖骑士象征冒险与行动，提示你追求热情目标。"},
-  {name:"权杖女王",desc:"权杖女王象征自信与魅力，鼓励你展现个人能力。"},
-  {name:"权杖国王",desc:"权杖国王象征领导力与远见，提示你统筹全局和引导团队。"},
-
-  // 圣杯
-  {name:"圣杯一",desc:"圣杯一象征爱与情感的开始，鼓励你敞开心扉，接受美好情感。"},
-  {name:"圣杯二",desc:"圣杯二象征合作与亲密关系，提示你建立和谐的伙伴关系。"},
-  {name:"圣杯三",desc:"圣杯三象征庆祝与友情，鼓励你享受社交和团体的欢乐。"},
-  {name:"圣杯四",desc:"圣杯四象征反思与内心不满，提醒你审视情感需求。"},
-  {name:"圣杯五",desc:"圣杯五象征失落与遗憾，提示你从失落中汲取经验。"},
-  {name:"圣杯六",desc:"圣杯六象征怀旧与温情，鼓励你珍视过去的美好记忆。"},
-  {name:"圣杯七",desc:"圣杯七象征幻想与选择，提醒你理性辨别机会与诱惑。"},
-  {name:"圣杯八",desc:"圣杯八象征离开与放下，提示你结束不再满足的关系或事务。"},
-  {name:"圣杯九",desc:"圣杯九象征满足与愿望实现，鼓励你享受收获与幸福。"},
-  {name:"圣杯十",desc:"圣杯十象征家庭与情感圆满，提示你珍惜身边幸福。"},
-  {name:"圣杯侍者",desc:"圣杯侍者象征感情消息与新体验，鼓励你表达感情和关怀。"},
-  {name:"圣杯骑士",desc:"圣杯骑士象征浪漫与追求，提示你主动争取心中所爱。"},
-  {name:"圣杯女王",desc:"圣杯女王象征温柔与理解，鼓励你用爱与智慧处理事务。"},
-  {name:"圣杯国王",desc:"圣杯国王象征平衡与责任，提示你理性处理感情和关系。"},
-
-  // 宝剑
-  {name:"宝剑一",desc:"宝剑一象征决断与突破，鼓励你做出明确选择。"},
-  {name:"宝剑二",desc:"宝剑二象征平衡与权衡，提示你慎重考虑各方因素。"},
-  {name:"宝剑三",desc:"宝剑三象征心痛与挑战，提醒你直面困难并寻求解决。"},
-  {name:"宝剑四",desc:"宝剑四象征休息与恢复，提示你暂时停下积蓄力量。"},
-  {name:"宝剑五",desc:"宝剑五象征冲突与胜负，提醒你注意策略和利益得失。"},
-  {name:"宝剑六",desc:"宝剑六象征过渡与离开，提示你离开困境前往新方向。"},
-  {name:"宝剑七",desc:"宝剑七象征策略与智慧，鼓励你用巧妙方法解决问题。"},
-  {name:"宝剑八",desc:"宝剑八象征束缚与限制，提醒你克服困境和内心障碍。"},
-  {name:"宝剑九",desc:"宝剑九象征焦虑与忧虑，提示你面对内心恐惧。"},
-  {name:"宝剑十",desc:"宝剑十象征结束与崩解，提醒你放下旧有压力迎接新局。"},
-  {name:"宝剑侍者",desc:"宝剑侍者象征好奇与学习，鼓励你掌握知识并沟通信息。"},
-  {name:"宝剑骑士",desc:"宝剑骑士象征果断行动，提示你快速而有力地解决问题。"},
-  {name:"宝剑女王",desc:"宝剑女王象征理智与明晰，提醒你用头脑而非情绪处理事务。"},
-  {name:"宝剑国王",desc:"宝剑国王象征权威与判断，提示你以智慧和经验引导他人。"},
-
-  // 金币
-  {name:"金币一",desc:"金币一象征新的财务机会或学习，鼓励你实践和积累资源。"},
-  {name:"金币二",desc:"金币二象征平衡与管理，提示你合理安排金钱和时间。"},
-  {name:"金币三",desc:"金币三象征技能与合作，鼓励你通过努力获得认可。"},
-  {name:"金币四",desc:"金币四象征守护与节制，提醒你谨慎管理资源。"},
-  {name:"金币五",desc:"金币五象征困难与失落，提示你面对经济或健康挑战。"},
-  {name:"金币六",desc:"金币六象征慷慨与回报，鼓励你帮助他人并获得平衡。"},
-  {name:"金币七",desc:"金币七象征耐心与耕耘，提示你坚持努力等待成果。"},
-  {name:"金币八",desc:"金币八象征专注与技能提升，鼓励你精益求精。"},
-  {name:"金币九",desc:"金币九象征独立与成就，提示你享受自力更生带来的成果。"},
-  {name:"金币十",desc:"金币十象征财富与稳定，鼓励你建立长远财务规划。"},
-  {name:"金币侍者",desc:"金币侍者象征学习与实践，提示你从基础积累知识和技能。"},
-  {name:"金币骑士",desc:"金币骑士象征踏实与努力，提醒你稳步前进，不急不躁。"},
-  {name:"金币女王",desc:"金币女王象征理财与关怀，鼓励你善于管理财富并照顾他人。"},
-  {name:"金币国王",desc:"金币国王象征权威与掌控，提示你有能力统筹资源和团队。"},
+  {name:"愚者",desc:"象征新的开始和冒险，提醒你保持开放心态和勇气面对未知的旅程。"},
+  {name:"魔术师",desc:"象征潜能与创造力，提醒你善用手中的资源去实现目标。"},
+  {name:"女祭司",desc:"象征智慧与直觉，引导你聆听内心深处的声音，保持冷静与理智。"},
+  {name:"皇后",desc:"象征丰饶与关爱，提醒你关注家庭、情感与成长。"},
+  {name:"皇帝",desc:"象征权威与秩序，提示你建立稳定的计划和结构。"},
+{name:"教皇",desc:"象征传统与指导，提醒你寻求智慧与建议，在关键问题上保持道德准则。"},
+{name:"恋人",desc:"象征选择与关系，提示你在情感或重要决定上要慎重考虑。"},
+{name:"战车",desc:"象征意志与胜利，提醒你勇敢前行，掌控自己的方向。"},
+{name:"力量",desc:"象征勇气与耐心，提示你用爱心和信念克服困难。"},
+{name:"隐者",desc:"象征内省与智慧，鼓励你独处思考，寻找内在真理。"},
+{name:"命运之轮",desc:"象征变化与周期，提醒你接受生命的起伏和转变。"},
+{name:"正义",desc:"象征公平与责任，提示你在行动前衡量利弊，做出公正选择。"},
+{name:"倒吊人",desc:"象征反思与等待，提醒你暂时放下控制，换个角度看问题。"},
+{name:"死神",desc:"象征结束与新生，提示你接受改变，迎接新阶段。"},
+{name:"节制",desc:"象征平衡与协调，提醒你掌握适度，保持和谐。"},
+{name:"恶魔",desc:"象征束缚与诱惑，警示你警惕不良习惯或困境。"},
+{name:"塔",desc:"象征突变与觉醒，提醒你面对意外或挑战时保持清醒。"},
+{name:"星星",desc:"象征希望与灵感，鼓励你保持信念和积极心态。"},
+{name:"月亮",desc:"象征潜意识与迷惑，提示你注意直觉与隐藏信息。"},
+{name:"太阳",desc:"象征成功与喜悦，提醒你享受成就和光明。"},
+{name:"审判",desc:"象征觉醒与重生，提示你反思过去，迎接新机遇。"},
+{name:"世界",desc:"象征完成与圆满，提示你取得成果，收获满足。"}
 ];
+
+// 小阿尔卡那牌
+const suits = ["权杖","圣杯","宝剑","钱币"];
+const ranks = ["A","2","3","4","5","6","7","8","9","10","侍从","骑士","皇后","国王"];
+suits.forEach(suit=>{
+  ranks.forEach(rank=>{
+    tarotDeck.push({name:`${suit} ${rank}`, desc:`这张牌象征${suit}系列的能量与${rank}的特质，提示你在相关事务中注意平衡和发展。`});
+  });
+});
+
+// 塔罗占卜
 document.getElementById('tarotBtn').addEventListener('click', ()=>{
   const card = tarotDeck[Math.floor(Math.random()*tarotDeck.length)];
-  document.getElementById('tarotResult').textContent = `${card.name}: ${card.desc}`;
+  document.getElementById('tarotResult').textContent = `${card.name}：${card.desc}`;
 });
 
 // ===== 绑定事件 =====
 document.getElementById('authButton').addEventListener('click', handleAuth);
-document.getElementById('toggleAuth').addEventListener('click',toggleAuthForm);
+document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
 document.getElementById('historyBtn').addEventListener('click', toggleHistory);
 document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
-document.getElementById('updateChartBtn')?.addEventListener('click', updateCharts);
+document.getElementById('updateChartBtn').addEventListener('click', updateCharts);
 
 // flatpickr 日历
 flatpickr("#calendar", {
