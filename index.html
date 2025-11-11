@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>日志</title>
+<title>日志 + 塔罗 + 统计</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 body {
@@ -24,15 +24,15 @@ body {
   gap: 20px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
-.left, .center, .right {
+.left, .center {
   padding: 10px;
 }
-.left, .right { width: 25%; }
-.center { width: 50%; display:flex; flex-direction:column; gap:10px; }
-h2 { text-align: center; margin-bottom: 15px; }
+.left { width: 25%; display:flex; flex-direction:column; gap:10px; }
+.center { width: 75%; display:flex; flex-direction:column; gap:10px; }
+h2,h3 { text-align: center; margin-bottom: 10px; }
 textarea {
   width: 100%;
-  height: 250px;
+  height: 200px;
   padding: 15px;
   font-size: 1rem;
   font-family: 'Georgia', serif;
@@ -59,9 +59,7 @@ select option {
   background: rgba(50,50,50,0.9);
   color: #fff;
 }
-select option:hover {
-  background: #666;
-}
+select option:hover { background: #666; }
 button {
   cursor: pointer;
   background: linear-gradient(45deg, #ff6ec4, #7873f5);
@@ -75,13 +73,14 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #authForm { max-width: 400px; margin: 80px auto; background: rgba(0,0,0,0.75); padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.5);}
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
 .flex-col { display:flex; flex-direction:column; gap:5px; }
-.stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
-#tarotResult { margin-top:10px; background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:60px; }
+.stats { margin-top:10px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
+.stats canvas { width: 200px; height: 200px; }
+#tarotResult { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; min-height:50px; }
 </style>
 </head>
 <body>
 
-<!-- 登录/注册表单 -->
+<!-- 登录/注册 -->
 <div id="authForm">
   <h2 id="formTitle">登录</h2>
   <input type="email" id="email" placeholder="邮箱">
@@ -90,16 +89,16 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
   <div id="toggleAuth">切换到注册</div>
 </div>
 
-<!-- 日志主页面 -->
+<!-- 主页面 -->
 <div class="container" id="mainPage" style="display:none;">
 
-  <!-- 左侧栏 -->
+  <!-- 左栏 -->
   <div class="left">
     <h3>选择日期</h3>
     <input type="text" id="calendar" placeholder="选择日期">
 
     <div class="flex-col">
-      <label>字体</label>
+      <label>🖋 字体</label>
       <select id="fontSelect">
         <option value="Georgia, serif">Georgia</option>
         <option value="'Segoe UI', sans-serif">Segoe UI</option>
@@ -110,7 +109,7 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     </div>
 
     <div class="flex-col">
-      <label>字号</label>
+      <label>🪶 字号</label>
       <select id="fontSizeSelect">
         <option value="0.75rem">12px</option>
         <option value="0.875rem">14px</option>
@@ -121,7 +120,7 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     </div>
 
     <div class="flex-col">
-      <label>心情</label>
+      <label>😃 心情</label>
       <select id="moodSelect">
         <option value="😃 开心">😃 开心</option>
         <option value="😞 难受">😞 难受</option>
@@ -132,7 +131,7 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     </div>
 
     <div class="flex-col">
-      <label>天气</label>
+      <label>☀️ 天气</label>
       <select id="weatherSelect">
         <option value="☀️ 晴天">☀️ 晴天</option>
         <option value="☁️ 阴天">☁️ 阴天</option>
@@ -142,31 +141,26 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
       </select>
     </div>
 
-    <!-- 塔罗占卜 -->
     <div class="flex-col">
-      <label>塔罗占卜</label>
       <button id="tarotBtn">开始占卜</button>
       <div id="tarotResult"></div>
     </div>
 
-    <button id="logoutBtn" style="background:#f44336;">注销</button>
+    <button id="uploadBtn">上传日志</button>
+    <button id="logoutBtn" style="background:#f44336;">🔴 注销</button>
   </div>
 
   <!-- 中间栏 -->
   <div class="center">
-    <h2>日志</h2>
+    <h2>当天日志</h2>
     <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
-    <button id="uploadBtn">上传日志</button>
-
-    <h3>当天日志</h3>
     <ul id="dayLogs"></ul>
 
-    <!-- 横向统计 -->
-    <div class="stats" id="statsSection">
+    <div class="stats" id="statsContainer">
       <h3>统计</h3>
-      <div style="display:flex; gap:10px; justify-content:space-around;">
-        <canvas id="weatherChart" width="150" height="150"></canvas>
-        <canvas id="moodChart" width="150" height="150"></canvas>
+      <div style="display:flex; gap:10px;">
+        <canvas id="weatherChart"></canvas>
+        <canvas id="moodChart"></canvas>
       </div>
       <label>选择年份</label>
       <select id="statYearSelect"></select>
@@ -182,21 +176,12 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     </div>
   </div>
 
-  <!-- 右侧栏 -->
-  <div class="right">
-    <h3>最近5条日志</h3>
-    <ul id="recentLogs"></ul>
-
-    <button id="historyBtn">历史记录</button>
-    <ul id="historyLogs" style="display:none"></ul>
-  </div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script type="module">
-// Firebase 初始化
+// Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -272,24 +257,13 @@ function addLifeLog() {
 async function loadAllLogs() {
   if (!currentUser) return;
   const userId = currentUser.uid;
-  const recentLogs = document.getElementById('recentLogs');
-  const historyLogs = document.getElementById('historyLogs');
   const dayLogs = document.getElementById('dayLogs');
-  recentLogs.innerHTML = '';
-  historyLogs.innerHTML = '';
   dayLogs.innerHTML = '';
 
   const q = query(collection(db, 'logs'), where('uid','==',userId));
   const snapshot = await getDocs(q);
   allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   allLogs.sort((a,b) => b.ts - a.ts);
-
-  allLogs.forEach((doc,i)=>{
-    const li = document.createElement('li');
-    li.textContent = `${doc.text} [${doc.mood} ${doc.weather}]`;
-    if(i<5) recentLogs.appendChild(li);
-    historyLogs.appendChild(li.cloneNode(true));
-  });
 
   showDayLogs(new Date());
   initStatYearSelect();
@@ -304,9 +278,8 @@ function showDayLogs(date) {
   const end = new Date(date); end.setHours(23,59,59,999);
 
   const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
-
   if(logs.length){
-    const latest = logs[0]; // 最新一条
+    const latest = logs[0];
     document.getElementById('moodSelect').value = latest.mood;
     document.getElementById('weatherSelect').value = latest.weather;
   }
@@ -319,10 +292,7 @@ function showDayLogs(date) {
 }
 
 // 历史记录切换
-function toggleHistory(){
-  const el = document.getElementById('historyLogs');
-  el.style.display = el.style.display==='none'?'block':'none';
-}
+function toggleHistory(){}
 
 // 初始化年份下拉
 function initStatYearSelect(){
@@ -342,47 +312,98 @@ function initStatYearSelect(){
 }
 
 // 更新双饼图
-function updateCharts() {
+function updateCharts(){
   const year = parseInt(document.getElementById('statYearSelect').value);
   const month = document.getElementById('statMonthSelect').value;
-
-  let filtered = allLogs.filter(d => {
+  let filtered = allLogs.filter(d=>{
     const date = new Date(d.ts);
     if(date.getFullYear()!==year) return false;
     if(month!=='all' && date.getMonth()!==parseInt(month)) return false;
     return true;
   });
 
-  // 天气饼图
   const weatherCounts = {};
-  filtered.forEach(d=> weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1 );
-  const weatherLabels = Object.keys(weatherCounts);
-  const weatherData = Object.values(weatherCounts);
-
-  const ctxW = document.getElementById('weatherChart').getContext('2d');
-  if(window.weatherChart) window.weatherChart.destroy();
-  window.weatherChart = new Chart(ctxW, {
-    type:'pie',
-    data:{ labels:weatherLabels, datasets:[{ data:weatherData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
-    options:{ responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+  const moodCounts = {};
+  filtered.forEach(d=>{
+    weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1;
+    moodCounts[d.mood] = (moodCounts[d.mood]||0)+1;
   });
 
-  // 心情饼图
-  const moodCounts = {};
-  filtered.forEach(d=> moodCounts[d.mood] = (moodCounts[d.mood]||0)+1 );
-  const moodLabels = Object.keys(moodCounts);
-  const moodData = Object.values(moodCounts);
-
-  const ctxM = document.getElementById('moodChart').getContext('2d');
-  if(window.moodChart) window.moodChart.destroy();
-  window.moodChart = new Chart(ctxM, {
+  const weatherCtx = document.getElementById('weatherChart').getContext('2d');
+  if(weatherChart) weatherChart.destroy();
+  weatherChart = new Chart(weatherCtx,{
     type:'pie',
-    data:{ labels:moodLabels, datasets:[{ data:moodData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0'] }] },
-    options:{ responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+    data:{
+      labels:Object.keys(weatherCounts),
+      datasets:[{data:Object.values(weatherCounts), backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF']}]
+    },
+    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
+  });
+
+  const moodCtx = document.getElementById('moodChart').getContext('2d');
+  if(moodChart) moodChart.destroy();
+  moodChart = new Chart(moodCtx,{
+    type:'pie',
+    data:{
+      labels:Object.keys(moodCounts),
+      datasets:[{data:Object.values(moodCounts), backgroundColor:['#FF9F40','#FF6384','#36A2EB','#9966FF','#4BC0C0']}]
+    },
+    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
   });
 }
 
-// 字体选择
+// 塔罗牌
+const tarotCards = [
+  // 大阿尔卡纳
+  {name:'愚者', meaning:'表示新的开始、冒险和自由的精神。'},
+  {name:'魔术师', meaning:'象征行动力、创造力和潜力的实现。'},
+  {name:'女祭司', meaning:'代表直觉、内在智慧和神秘力量。'},
+  {name:'皇后', meaning:'象征丰收、滋养与创造力。'},
+  {name:'皇帝', meaning:'代表秩序、权力和责任。'},
+  {name:'教皇', meaning:'象征智慧、指导和传统价值。'},
+  {name:'恋人', meaning:'表示关系、选择和和谐的结合。'},
+  {name:'战车', meaning:'象征意志力、掌控和胜利。'},
+  {name:'力量', meaning:'代表勇气、耐心和内在力量。'},
+  {name:'隐者', meaning:'象征沉思、内省和寻求真理。'},
+  {name:'命运之轮', meaning:'表示周期、转变和命运的流动。'},
+  {name:'正义', meaning:'象征公平、平衡和因果。'},
+  {name:'倒吊人', meaning:'表示牺牲、放下和新视角。'},
+  {name:'死神', meaning:'象征结束、转变和重生。'},
+  {name:'节制', meaning:'代表平衡、和谐和适度。'},
+  {name:'恶魔', meaning:'象征诱惑、束缚和内在阴影。'},
+  {name:'塔', meaning:'表示突发变化、觉醒和重建。'},
+  {name:'星星', meaning:'象征希望、灵感和疗愈。'},
+  {name:'月亮', meaning:'代表潜意识、迷茫和直觉。'},
+  {name:'太阳', meaning:'象征成功、喜悦和正能量。'},
+  {name:'审判', meaning:'表示觉醒、反思和新生。'},
+  {name:'世界', meaning:'象征完成、圆满和成就。'},
+  // 小阿尔卡纳：示例 14 张
+  {name:'权杖A', meaning:'象征行动、创造力和能量的开始。'},
+  {name:'权杖2', meaning:'表示计划、策略和未来方向的探索。'},
+  {name:'权杖3', meaning:'象征合作、展望和努力成果的显现。'},
+  {name:'权杖4', meaning:'表示稳定、庆祝和成功的阶段。'},
+  {name:'权杖5', meaning:'象征冲突、竞争与成长的机会。'},
+  {name:'权杖6', meaning:'表示胜利、认可和成就。'},
+  {name:'权杖7', meaning:'象征防守、自信与坚持。'},
+  {name:'权杖8', meaning:'表示快速变化、消息和进展。'},
+  {name:'权杖9', meaning:'象征防御、警觉和坚韧。'},
+  {name:'权杖10', meaning:'表示责任、压力和承担的挑战。'},
+  {name:'权杖侍者', meaning:'象征学习、探寻和新机会。'},
+  {name:'权杖骑士', meaning:'表示行动力、冒险和勇气。'},
+  {name:'权杖皇后', meaning:'象征温柔、关怀与领导能力。'},
+  {name:'权杖国王', meaning:'表示掌控、权威和决策能力。'},
+  {name:'圣杯A', meaning:'象征情感的新开始、爱与灵感。'},
+  {name:'圣杯2', meaning:'表示关系、合作与和谐。'}
+];
+
+// 塔罗占卜
+function drawTarot() {
+  const idx = Math.floor(Math.random() * tarotCards.length);
+  const card = tarotCards[idx];
+  document.getElementById('tarotResult').textContent = `${card.name}：${card.meaning}（约80字）`;
+}
+
+// 字体和字号事件
 document.getElementById('fontSelect').addEventListener('change', e=>{
   document.getElementById('lifeLog').style.fontFamily = e.target.value;
 });
@@ -390,113 +411,13 @@ document.getElementById('fontSizeSelect').addEventListener('change', e=>{
   document.getElementById('lifeLog').style.fontSize = e.target.value;
 });
 
-// 塔罗牌列表（完整一副）
-// 塔罗牌完整数组（大阿尔卡那 + 小阿尔卡那完整56张）
-const tarotDeck = [
-  // 大阿尔卡那 22 张
-  {name:"愚者",desc:"愚者象征新开始、纯真与自由，代表着敢于冒险和信任自己，面对未知勇敢踏出第一步。"},
-  {name:"魔术师",desc:"魔术师代表创造力与行动力，意味着你有能力将想法付诸实践，实现目标。"},
-  {name:"女祭司",desc:"女祭司象征智慧与直觉，提醒你倾听内心声音，探索未知奥秘。"},
-  {name:"女皇",desc:"女皇象征丰饶与创造，鼓励你发挥潜能，培养爱与关怀。"},
-  {name:"皇帝",desc:"皇帝象征掌控与秩序，提示你建立结构与纪律，稳定局面。"},
-  {name:"教皇",desc:"教皇象征传统与指导，提醒你寻求支持，理解规则与信念。"},
-  {name:"恋人",desc:"恋人牌代表关系与选择，暗示你在感情或重要决策上需权衡利弊。"},
-  {name:"战车",desc:"战车象征意志力与胜利，意味着克服困难，勇往直前。"},
-  {name:"力量",desc:"力量牌象征内在勇气与信心，提示你用温柔与耐心面对挑战。"},
-  {name:"隐者",desc:"隐者牌代表沉思与内省，鼓励你独处反思，寻找答案。"},
-  {name:"命运之轮",desc:"命运之轮象征变化与循环，提醒你顺应时势，抓住机会。"},
-  {name:"正义",desc:"正义牌代表公平与责任，提示你考虑行为后果，追求平衡。"},
-  {name:"倒吊人",desc:"倒吊人牌象征暂停与反思，提醒你从不同角度看待问题。"},
-  {name:"死亡",desc:"死亡牌象征结束与转化，意味着放下过去，迎接新开始。"},
-  {name:"节制",desc:"节制牌代表平衡与协调，提示你调节心态，寻求和谐。"},
-  {name:"恶魔",desc:"恶魔牌象征诱惑与束缚，提醒你警觉成瘾或不良依赖。"},
-  {name:"塔",desc:"塔牌象征突变与觉醒，意味着意外事件带来改变和成长。"},
-  {name:"星星",desc:"星星牌代表希望与灵感，鼓励你保持信念和追求梦想。"},
-  {name:"月亮",desc:"月亮牌象征幻象与潜意识，提示关注内在情绪和直觉。"},
-  {name:"太阳",desc:"太阳牌象征光明与活力，带来成功、喜悦与满足感。"},
-  {name:"审判",desc:"审判牌象征觉醒与反思，意味着自我评估和新的机遇。"},
-  {name:"世界",desc:"世界牌象征完成与圆满，提醒你庆祝成就，迈向新阶段。"},
-
-  // 小阿尔卡那 56 张
-  // 权杖
-  {name:"权杖一",desc:"权杖一象征新机会与行动，提示你把握时机，勇敢尝试。"},
-  {name:"权杖二",desc:"权杖二象征计划与决策，鼓励你规划未来，坚定方向。"},
-  {name:"权杖三",desc:"权杖三象征远景与拓展，暗示你要关注长远目标。"},
-  {name:"权杖四",desc:"权杖四象征庆祝与稳定，提醒你享受成果和团结。"},
-  {name:"权杖五",desc:"权杖五象征竞争与挑战，提示你积极应对冲突和竞争。"},
-  {name:"权杖六",desc:"权杖六象征胜利与认可，鼓励你展示能力和成果。"},
-  {name:"权杖七",desc:"权杖七象征防御与坚持，提示你维护立场与原则。"},
-  {name:"权杖八",desc:"权杖八象征迅速发展，提醒你抓住快速变化的机会。"},
-  {name:"权杖九",desc:"权杖九象征坚持与耐力，提示你面对困难不轻言放弃。"},
-  {name:"权杖十",desc:"权杖十象征压力与责任，提醒你合理分担重担。"},
-  {name:"权杖侍者",desc:"权杖侍者象征新信息与探索，鼓励你主动学习和尝试。"},
-  {name:"权杖骑士",desc:"权杖骑士象征冒险与行动，提示你追求热情目标。"},
-  {name:"权杖女王",desc:"权杖女王象征自信与魅力，鼓励你展现个人能力。"},
-  {name:"权杖国王",desc:"权杖国王象征领导力与远见，提示你统筹全局和引导团队。"},
-
-  // 圣杯
-  {name:"圣杯一",desc:"圣杯一象征爱与情感的开始，鼓励你敞开心扉，接受美好情感。"},
-  {name:"圣杯二",desc:"圣杯二象征合作与亲密关系，提示你建立和谐的伙伴关系。"},
-  {name:"圣杯三",desc:"圣杯三象征庆祝与友情，鼓励你享受社交和团体的欢乐。"},
-  {name:"圣杯四",desc:"圣杯四象征反思与内心不满，提醒你审视情感需求。"},
-  {name:"圣杯五",desc:"圣杯五象征失落与遗憾，提示你从失落中汲取经验。"},
-  {name:"圣杯六",desc:"圣杯六象征怀旧与温情，鼓励你珍视过去的美好记忆。"},
-  {name:"圣杯七",desc:"圣杯七象征幻想与选择，提醒你理性辨别机会与诱惑。"},
-  {name:"圣杯八",desc:"圣杯八象征离开与放下，提示你结束不再满足的关系或事务。"},
-  {name:"圣杯九",desc:"圣杯九象征满足与愿望实现，鼓励你享受收获与幸福。"},
-  {name:"圣杯十",desc:"圣杯十象征家庭与情感圆满，提示你珍惜身边幸福。"},
-  {name:"圣杯侍者",desc:"圣杯侍者象征感情消息与新体验，鼓励你表达感情和关怀。"},
-  {name:"圣杯骑士",desc:"圣杯骑士象征浪漫与追求，提示你主动争取心中所爱。"},
-  {name:"圣杯女王",desc:"圣杯女王象征温柔与理解，鼓励你用爱与智慧处理事务。"},
-  {name:"圣杯国王",desc:"圣杯国王象征平衡与责任，提示你理性处理感情和关系。"},
-
-  // 宝剑
-  {name:"宝剑一",desc:"宝剑一象征决断与突破，鼓励你做出明确选择。"},
-  {name:"宝剑二",desc:"宝剑二象征平衡与权衡，提示你慎重考虑各方因素。"},
-  {name:"宝剑三",desc:"宝剑三象征心痛与挑战，提醒你直面困难并寻求解决。"},
-  {name:"宝剑四",desc:"宝剑四象征休息与恢复，提示你暂时停下积蓄力量。"},
-  {name:"宝剑五",desc:"宝剑五象征冲突与胜负，提醒你注意策略和利益得失。"},
-  {name:"宝剑六",desc:"宝剑六象征过渡与离开，提示你离开困境前往新方向。"},
-  {name:"宝剑七",desc:"宝剑七象征策略与智慧，鼓励你用巧妙方法解决问题。"},
-  {name:"宝剑八",desc:"宝剑八象征束缚与限制，提醒你克服困境和内心障碍。"},
-  {name:"宝剑九",desc:"宝剑九象征焦虑与忧虑，提示你面对内心恐惧。"},
-  {name:"宝剑十",desc:"宝剑十象征结束与崩解，提醒你放下旧有压力迎接新局。"},
-  {name:"宝剑侍者",desc:"宝剑侍者象征好奇与学习，鼓励你掌握知识并沟通信息。"},
-  {name:"宝剑骑士",desc:"宝剑骑士象征果断行动，提示你快速而有力地解决问题。"},
-  {name:"宝剑女王",desc:"宝剑女王象征理智与明晰，提醒你用头脑而非情绪处理事务。"},
-  {name:"宝剑国王",desc:"宝剑国王象征权威与判断，提示你以智慧和经验引导他人。"},
-
-  // 金币
-  {name:"金币一",desc:"金币一象征新的财务机会或学习，鼓励你实践和积累资源。"},
-  {name:"金币二",desc:"金币二象征平衡与管理，提示你合理安排金钱和时间。"},
-  {name:"金币三",desc:"金币三象征技能与合作，鼓励你通过努力获得认可。"},
-  {name:"金币四",desc:"金币四象征守护与节制，提醒你谨慎管理资源。"},
-  {name:"金币五",desc:"金币五象征困难与失落，提示你面对经济或健康挑战。"},
-  {name:"金币六",desc:"金币六象征慷慨与回报，鼓励你帮助他人并获得平衡。"},
-  {name:"金币七",desc:"金币七象征耐心与耕耘，提示你坚持努力等待成果。"},
-  {name:"金币八",desc:"金币八象征专注与技能提升，鼓励你精益求精。"},
-  {name:"金币九",desc:"金币九象征独立与成就，提示你享受自力更生带来的成果。"},
-  {name:"金币十",desc:"金币十象征财富与稳定，鼓励你建立长远财务规划。"},
-  {name:"金币侍者",desc:"金币侍者象征学习与实践，提示你从基础积累知识和技能。"},
-  {name:"金币骑士",desc:"金币骑士象征踏实与努力，提醒你稳步前进，不急不躁。"},
-  {name:"金币女王",desc:"金币女王象征理财与关怀，鼓励你善于管理财富并照顾他人。"},
-  {name:"金币国王",desc:"金币国王象征权威与掌控，提示你有能力统筹资源和团队。"},
-];
-
-
-// 塔罗占卜
-document.getElementById('tarotBtn').addEventListener('click', ()=>{
-  const card = tarotDeck[Math.floor(Math.random()*tarotDeck.length)];
-  document.getElementById('tarotResult').textContent = `${card.name}：${card.desc}`;
-});
-
 // ===== 绑定事件 =====
 document.getElementById('authButton').addEventListener('click', handleAuth);
 document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
-document.getElementById('historyBtn').addEventListener('click', toggleHistory);
 document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
 document.getElementById('updateChartBtn').addEventListener('click', updateCharts);
+document.getElementById('tarotBtn').addEventListener('click', drawTarot);
 
 // flatpickr 日历
 flatpickr("#calendar", {
@@ -525,4 +446,3 @@ onAuthStateChanged(auth, user => {
 </script>
 </body>
 </html>
-
