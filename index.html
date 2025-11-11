@@ -75,9 +75,8 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 #authForm { max-width: 400px; margin: 80px auto; background: rgba(0,0,0,0.75); padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.5);}
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
 .flex-col { display:flex; flex-direction:column; gap:5px; }
-.stats { margin-top:10px; display:flex; gap:20px; justify-content:center; }
-.stats canvas { background: rgba(255,255,255,0.1); border-radius:10px; }
-#tarotResult { margin-top:5px; padding:10px; background: rgba(255,255,255,0.1); border-radius:8px; min-height:60px; }
+.stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
+.tarot-result { margin-top:10px; background: rgba(255,255,255,0.1); padding:10px; border-radius:8px; min-height:60px; }
 </style>
 </head>
 <body>
@@ -145,9 +144,9 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 
     <!-- 塔罗占卜 -->
     <div class="flex-col">
-      <label>🪄 塔罗占卜</label>
+      <label>塔罗占卜</label>
       <button id="tarotBtn">开始占卜</button>
-      <div id="tarotResult"></div>
+      <div class="tarot-result" id="tarotResult"></div>
     </div>
 
     <button id="logoutBtn" style="background:#f44336;">注销</button>
@@ -159,15 +158,13 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
     <button id="uploadBtn">上传日志</button>
 
+    <div class="stats" style="display:flex; gap:20px; justify-content:center;">
+      <canvas id="weatherChart" width="150" height="150"></canvas>
+      <canvas id="moodChart" width="150" height="150"></canvas>
+    </div>
+
     <h3>当天日志</h3>
     <ul id="dayLogs"></ul>
-
-    <!-- 横向统计图 -->
-    <div class="stats">
-      <canvas id="weatherChart" width="200" height="200"></canvas>
-      <canvas id="moodChart" width="200" height="200"></canvas>
-    </div>
-    <button id="updateChartBtn">更新统计</button>
   </div>
 
   <!-- 右侧栏 -->
@@ -198,6 +195,7 @@ const firebaseConfig = {
   appId: "1:877853934641:web:678fc96d4054762f9fc110",
   measurementId: "G-DETSMZTR64"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -208,7 +206,182 @@ let allLogs = [];
 let weatherChart = null;
 let moodChart = null;
 
-// 塔罗牌完整数组
+// 登录/注册
+function handleAuth(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if(!email || !password) return alert('请输入邮箱和密码');
+
+  if(isLogin){
+    signInWithEmailAndPassword(auth, email, password)
+      .then(res => { currentUser = res.user; })
+      .catch(err => alert('登录失败: '+err.message));
+  } else {
+    createUserWithEmailAndPassword(auth, email, password)
+      .then(res => { alert('注册成功！请登录'); toggleAuthForm(); })
+      .catch(err => alert('注册失败: '+err.message));
+  }
+}
+
+function toggleAuthForm(){
+  isLogin = !isLogin;
+  document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
+  document.getElementById('authButton').textContent = isLogin ? '登录' : '注册';
+  document.getElementById('toggleAuth').textContent = isLogin ? '切换到注册' : '切换到登录';
+}
+
+// 上传日志
+function addLifeLog() {
+  const text = document.getElementById('lifeLog').value.trim();
+  if (!text) return alert('日志不能为空');
+  if (!currentUser) return alert('请先登录');
+
+  const mood = document.getElementById('moodSelect').value;
+  const weather = document.getElementById('weatherSelect').value;
+
+  addDoc(collection(db, 'logs'), {
+    uid: currentUser.uid,
+    text,
+    mood,
+    weather,
+    ts: Date.now()
+  })
+  .then(()=> {
+    document.getElementById('lifeLog').value = '';
+    loadAllLogs();
+  })
+  .catch(err => alert('上传失败: '+err.message));
+}
+
+// 加载日志
+async function loadAllLogs() {
+  if (!currentUser) return;
+  const userId = currentUser.uid;
+  const recentLogs = document.getElementById('recentLogs');
+  const historyLogs = document.getElementById('historyLogs');
+  const dayLogs = document.getElementById('dayLogs');
+  recentLogs.innerHTML = '';
+  historyLogs.innerHTML = '';
+  dayLogs.innerHTML = '';
+
+  const q = query(collection(db, 'logs'), where('uid','==',userId));
+  const snapshot = await getDocs(q);
+  allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  allLogs.sort((a,b) => b.ts - a.ts);
+
+  allLogs.forEach((doc,i)=>{
+    const li = document.createElement('li');
+    li.textContent = `${doc.text} [${doc.mood} ${doc.weather}]`;
+    if(i<5) recentLogs.appendChild(li);
+    historyLogs.appendChild(li.cloneNode(true));
+  });
+
+  showDayLogs(new Date());
+  initStatYearSelect();
+  updateCharts();
+}
+
+// 显示当天日志 & 自动填充心情/天气
+function showDayLogs(date) {
+  const dayLogs = document.getElementById('dayLogs');
+  dayLogs.innerHTML = '';
+  const start = new Date(date); start.setHours(0,0,0,0);
+  const end = new Date(date); end.setHours(23,59,59,999);
+
+  const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
+
+  if(logs.length){
+    const latest = logs[0]; // 最新一条
+    document.getElementById('moodSelect').value = latest.mood;
+    document.getElementById('weatherSelect').value = latest.weather;
+  }
+
+  logs.forEach(d=>{
+    const li = document.createElement('li');
+    li.textContent = `${d.text} [${d.mood} ${d.weather}]`;
+    dayLogs.appendChild(li);
+  });
+}
+
+// 历史记录切换
+function toggleHistory(){
+  const el = document.getElementById('historyLogs');
+  el.style.display = el.style.display==='none'?'block':'none';
+}
+
+// 初始化年份下拉
+function initStatYearSelect(){
+  const yearSelect = document.getElementById('statYearSelect');
+  yearSelect.innerHTML = '';
+  const years = [...new Set(allLogs.map(l=>new Date(l.ts).getFullYear()))];
+  const currentYear = new Date().getFullYear();
+  if(!years.includes(currentYear)) years.push(currentYear);
+  years.sort((a,b)=>b-a);
+  years.forEach(y=>{
+    const option = document.createElement('option');
+    option.value = y;
+    option.textContent = y;
+    if(y===currentYear) option.selected = true;
+    yearSelect.appendChild(option);
+  });
+}
+
+// 更新天气和心情饼图
+function updateCharts(){
+  const year = parseInt(document.getElementById('statYearSelect').value);
+  const month = document.getElementById('statMonthSelect').value;
+
+  let filtered = allLogs.filter(d=>{
+    const date = new Date(d.ts);
+    if(date.getFullYear()!==year) return false;
+    if(month!=='all' && date.getMonth()!==parseInt(month)) return false;
+    return true;
+  });
+
+  // 天气统计
+  const weatherCounts = {};
+  filtered.forEach(d=>{
+    weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1;
+  });
+  const weatherLabels = Object.keys(weatherCounts);
+  const weatherData = Object.values(weatherCounts);
+
+  // 心情统计
+  const moodCounts = {};
+  filtered.forEach(d=>{
+    moodCounts[d.mood] = (moodCounts[d.mood]||0)+1;
+  });
+  const moodLabels = Object.keys(moodCounts);
+  const moodData = Object.values(moodCounts);
+
+  // 销毁已有图表
+  if(weatherChart) weatherChart.destroy();
+  if(moodChart) moodChart.destroy();
+
+  const weatherCtx = document.getElementById('weatherChart').getContext('2d');
+  weatherChart = new Chart(weatherCtx, {
+    type: 'pie',
+    data: { labels: weatherLabels, datasets:[{ data: weatherData, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
+    options: { responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+  });
+
+  const moodCtx = document.getElementById('moodChart').getContext('2d');
+  moodChart = new Chart(moodCtx, {
+    type: 'pie',
+    data: { labels: moodLabels, datasets:[{ data: moodData, backgroundColor:['#FF9F40','#FF6384','#36A2EB','#FFCE56','#4BC0C0'] }] },
+    options: { responsive:true, plugins:{ legend:{ position:'bottom' } }, radius:'33%' }
+  });
+}
+
+// 字体选择
+document.getElementById('fontSelect').addEventListener('change', e=>{
+  document.getElementById('lifeLog').style.fontFamily = e.target.value;
+});
+document.getElementById('fontSizeSelect').addEventListener('change', e=>{
+  document.getElementById('lifeLog').style.fontSize = e.target.value;
+});
+
+// 塔罗牌
 // 塔罗牌完整数组（大阿尔卡那 + 小阿尔卡那完整56张）
 const tarotDeck = [
   // 大阿尔卡那 22 张
@@ -300,125 +473,18 @@ const tarotDeck = [
   {name:"金币女王",desc:"金币女王象征理财与关怀，鼓励你善于管理财富并照顾他人。"},
   {name:"金币国王",desc:"金币国王象征权威与掌控，提示你有能力统筹资源和团队。"},
 ];
-
-
-// 塔罗占卜
 document.getElementById('tarotBtn').addEventListener('click', ()=>{
-  const index = Math.floor(Math.random()*tarotDeck.length);
-  const card = tarotDeck[index];
-  document.getElementById('tarotResult').textContent = `${card.name}：${card.desc}`;
+  const card = tarotDeck[Math.floor(Math.random()*tarotDeck.length)];
+  document.getElementById('tarotResult').textContent = `${card.name}: ${card.desc}`;
 });
 
-// 登录/注册
-function handleAuth(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  if(!email || !password) return alert('请输入邮箱和密码');
-
-  if(isLogin){
-    signInWithEmailAndPassword(auth, email, password)
-      .then(res => { currentUser = res.user; })
-      .catch(err => alert('登录失败: '+err.message));
-  } else {
-    createUserWithEmailAndPassword(auth, email, password)
-      .then(res => { alert('注册成功！请登录'); toggleAuthForm(); })
-      .catch(err => alert('注册失败: '+err.message));
-  }
-}
-
-function toggleAuthForm(){
-  isLogin = !isLogin;
-  document.getElementById('formTitle').textContent = isLogin ? '登录' : '注册';
-  document.getElementById('authButton').textContent = isLogin ? '登录' : '注册';
-  document.getElementById('toggleAuth').textContent = isLogin ? '切换到注册' : '切换到登录';
-}
-
-// 上传日志
-function addLifeLog() {
-  const text = document.getElementById('lifeLog').value.trim();
-  if (!text) return alert('日志不能为空');
-  if (!currentUser) return alert('请先登录');
-
-  const mood = document.getElementById('moodSelect').value;
-  const weather = document.getElementById('weatherSelect').value;
-
-  addDoc(collection(db, 'logs'), {
-    uid: currentUser.uid,
-    text,
-    mood,
-    weather,
-    ts: Date.now()
-  })
-  .then(()=> {
-    document.getElementById('lifeLog').value = '';
-    loadAllLogs();
-  })
-  .catch(err => alert('上传失败: '+err.message));
-}
-
-// 加载日志
-async function loadAllLogs() {
-  if (!currentUser) return;
-  const userId = currentUser.uid;
-  const recentLogs = document.getElementById('recentLogs');
-  const historyLogs = document.getElementById('historyLogs');
-  const dayLogs = document.getElementById('dayLogs');
-  recentLogs.innerHTML = '';
-  historyLogs.innerHTML = '';
-  dayLogs.innerHTML = '';
-
-  const q = query(collection(db, 'logs'), where('uid','==',userId));
-  const snapshot = await getDocs(q);
-  allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  allLogs.sort((a,b) => b.ts - a.ts);
-
-  allLogs.forEach((doc,i)=>{
-    const li = document.createElement('li');
-    li.textContent = `${doc.text} [${doc.mood} ${doc.weather}]`;
-    if(i<5) recentLogs.appendChild(li);
-    historyLogs.appendChild(li.cloneNode(true));
-  });
-
-  showDayLogs(new Date());
-  updateStatSelect();
-  updateCharts();
-}
-
-// 显示当天日志 & 自动填充心情/天气
-function showDayLogs(date) {
-  const dayLogs = document.getElementById('dayLogs');
-  dayLogs.innerHTML = '';
-  const start = new Date(date); start.setHours(0,0,0,0);
-  const end = new Date(date); end.setHours(23,59,59,999);
-
-  const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
-
-  if(logs.length){
-    const latest = logs[0];
-    document.getElementById('moodSelect').value = latest.mood;
-    document.getElementById('weatherSelect').value = latest.weather;
-  }
-
-  logs.forEach(d=>{
-    const li = document.createElement('li');
-    li.textContent = `${d.text} [${d.mood} ${d.weather}]`;
-    dayLogs.appendChild(li);
-  });
-}
-
-// 历史记录切换
-function toggleHistory(){
-  const el = document.getElementById('historyLogs');
-  el.style.display = el.style.display==='none'?'block':'none';
-}
-
-// 字体选择
-document.getElementById('fontSelect').addEventListener('change', e=>{
-  document.getElementById('lifeLog').style.fontFamily = e.target.value;
-});
-document.getElementById('fontSizeSelect').addEventListener('change', e=>{
-  document.getElementById('lifeLog').style.fontSize = e.target.value;
-});
+// ===== 绑定事件 =====
+document.getElementById('authButton').addEventListener('click', handleAuth);
+document.getElementById('toggleAuth').addEventListener('click',toggleAuthForm);
+document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
+document.getElementById('historyBtn').addEventListener('click', toggleHistory);
+document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
+document.getElementById('updateChartBtn')?.addEventListener('click', updateCharts);
 
 // flatpickr 日历
 flatpickr("#calendar", {
@@ -430,51 +496,6 @@ flatpickr("#calendar", {
     if(selectedDates.length) showDayLogs(selectedDates[0]);
   }
 });
-
-// 更新统计下拉（年份）
-function updateStatSelect(){
-  const yearSelect = document.getElementById('statYearSelect');
-  if(!yearSelect) return;
-}
-
-// 更新饼图
-function updateCharts(){
-  const filtered = allLogs;
-  const weatherCounts = {};
-  const moodCounts = {};
-  filtered.forEach(d=>{
-    weatherCounts[d.weather]=(weatherCounts[d.weather]||0)+1;
-    moodCounts[d.mood]=(moodCounts[d.mood]||0)+1;
-  });
-  const weatherLabels = Object.keys(weatherCounts);
-  const weatherData = Object.values(weatherCounts);
-  const moodLabels = Object.keys(moodCounts);
-  const moodData = Object.values(moodCounts);
-
-  const ctx1 = document.getElementById('weatherChart').getContext('2d');
-  if(weatherChart) weatherChart.destroy();
-  weatherChart = new Chart(ctx1,{
-    type:'pie',
-    data:{labels:weatherLabels,datasets:[{data:weatherData,backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF']}]},
-    options:{responsive:true,plugins:{legend:{position:'bottom'}}}
-  });
-
-  const ctx2 = document.getElementById('moodChart').getContext('2d');
-  if(moodChart) moodChart.destroy();
-  moodChart = new Chart(ctx2,{
-    type:'pie',
-    data:{labels:moodLabels,datasets:[{data:moodData,backgroundColor:['#FF9F40','#FF6384','#36A2EB','#4BC0C0','#9966FF']}]},
-    options:{responsive:true,plugins:{legend:{position:'bottom'}}}
-  });
-}
-
-// 绑定事件
-document.getElementById('authButton').addEventListener('click', handleAuth);
-document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
-document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
-document.getElementById('historyBtn').addEventListener('click', toggleHistory);
-document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
-document.getElementById('updateChartBtn').addEventListener('click', updateCharts);
 
 // 保持登录状态
 onAuthStateChanged(auth, user => {
