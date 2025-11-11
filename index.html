@@ -449,9 +449,7 @@ const tarotDeck = [
   {name:"金币女王",desc:"金币女王象征理财与关怀，鼓励你善于管理财富并照顾他人。"},
   {name:"金币国王",desc:"金币国王象征权威与掌控，提示你有能力统筹资源和团队。"},
 ];
-
-tarotDeck.push(...Array.from({length:56}, (_,i)=>({name:'小阿尔卡那 '+(i+1), desc:'这是一张小阿尔卡那牌，提醒你关注日常事务和情绪。'})));
-
+  
 function drawTarot(){
   const idx = Math.floor(Math.random()*tarotDeck.length);
   const card = tarotDeck[idx];
