@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>日志</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
 body {
   margin: 0;
@@ -14,6 +15,14 @@ body {
   color: #fff;
   overflow-x: hidden;
 }
+#meteorCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 主容器 */
 .container {
   max-width: 1200px;
   margin: 20px auto;
@@ -23,13 +32,20 @@ body {
   display: flex;
   gap: 20px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  position: relative;
+  z-index: 2;
 }
+
+/* 三栏布局（保持你之前的结构） */
 .left, .center, .right {
   padding: 10px;
 }
 .left, .right { width: 25%; }
 .center { width: 50%; display:flex; flex-direction:column; gap:10px; }
+
 h2 { text-align: center; margin-bottom: 15px; }
+
+/* 文本框 */
 textarea {
   width: 100%;
   height: 250px;
@@ -42,6 +58,8 @@ textarea {
   resize: vertical;
   outline: none;
 }
+
+/* 常规控件 */
 input, select, button {
   width: 100%;
   margin: 5px 0;
@@ -51,17 +69,18 @@ input, select, button {
   outline: none;
   font-size: 1rem;
 }
+
+/* 下拉可见性 */
 select {
-  background: rgba(50,50,50,0.7);
-  color: #fff;
-}
-select option {
   background: rgba(50,50,50,0.9);
   color: #fff;
 }
-select option:hover {
-  background: #666;
+select option {
+  background: rgba(40,40,40,0.98);
+  color: #fff;
 }
+
+/* 按钮 */
 button {
   cursor: pointer;
   background: linear-gradient(45deg, #ff6ec4, #7873f5);
@@ -69,16 +88,39 @@ button {
   font-weight: bold;
   transition: all 0.2s ease;
 }
-button:hover { transform: scale(1.05); background: linear-gradient(45deg, #7873f5, #ff6ec4); }
-ul { list-style: none; padding-left: 0; max-height: 200px; overflow-y: auto; }
-li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border-radius: 5px; }
-#authForm { max-width: 400px; margin: 80px auto; background: rgba(0,0,0,0.75); padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.5);}
+button:hover { transform: scale(1.03); background: linear-gradient(45deg, #7873f5, #ff6ec4); }
+
+/* 列表 */
+ul { list-style: none; padding-left: 0; max-height: 220px; overflow-y: auto; }
+li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border-radius: 5px; color:#fff; }
+
+/* 登录表单 */
+#authForm { max-width: 420px; margin: 60px auto; background: rgba(0,0,0,0.75); padding: 22px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+#authForm input { background: rgba(255,255,255,0.06); color:#fff; border-radius:8px; padding:10px; margin:8px 0; border:none; outline:none; width:100%; }
 #toggleAuth { text-align:center; margin-top:12px; cursor:pointer; color:#00ffff; font-weight:bold }
-.flex-col { display:flex; flex-direction:column; gap:5px; }
-.stats { margin-top:20px; background: rgba(255,255,255,0.1); padding:10px; border-radius:10px; }
+
+/* 统计卡片 */
+.stats { margin-top:10px; background: rgba(255,255,255,0.05); padding:10px; border-radius:10px; }
+
+/* 小样式 */
+.small-label { font-size:0.95rem; color:#dcdfff; margin-top:6px; display:block; }
+.info-row { display:flex; gap:8px; }
+.info-row > * { flex:1; }
+
+/* 使右侧饼图不占用全部高度 */
+#weatherChart { max-width: 260px; margin: 10px auto; display:block; }
+
+/* 使页面在窄屏下堆叠 */
+@media (max-width:980px){
+  .container { flex-direction:column; gap:12px; padding:12px; }
+  .left, .center, .right { width:100%; }
+  #weatherChart { max-width: 200px; }
+}
 </style>
 </head>
 <body>
+
+<canvas id="meteorCanvas"></canvas>
 
 <!-- 登录/注册表单 -->
 <div id="authForm">
@@ -97,58 +139,64 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
     <h3>选择日期</h3>
     <input type="text" id="calendar" placeholder="选择日期">
 
-    <div class="flex-col">
-      <label>字体</label>
-      <select id="fontSelect">
-        <option value="Georgia, serif">Georgia</option>
-        <option value="'Segoe UI', sans-serif">Segoe UI</option>
-        <option value="Courier New, monospace">Courier New</option>
-        <option value="Arial, sans-serif">Arial</option>
-        <option value="Times New Roman, serif">Times New Roman</option>
-      </select>
+    <label class="small-label">字体</label>
+    <select id="fontSelect">
+      <option value="Georgia, serif">Georgia</option>
+      <option value="'Segoe UI', sans-serif">Segoe UI</option>
+      <option value="Courier New, monospace">Courier New</option>
+      <option value="Arial, sans-serif">Arial</option>
+      <option value="Times New Roman, serif">Times New Roman</option>
+    </select>
+
+    <label class="small-label">字号</label>
+    <select id="fontSizeSelect">
+      <option value="0.75rem">12px</option>
+      <option value="0.875rem">14px</option>
+      <option value="1rem" selected>16px</option>
+      <option value="1.125rem">18px</option>
+      <option value="1.25rem">20px</option>
+    </select>
+
+    <label class="small-label">心情</label>
+    <select id="moodSelect">
+      <option value="😃 开心">😃 开心</option>
+      <option value="😞 难受">😞 难受</option>
+      <option value="😐 平静">😐 平静</option>
+      <option value="😡 生气">😡 生气</option>
+      <option value="😴 疲惫">😴 疲惫</option>
+    </select>
+
+    <label class="small-label">天气</label>
+    <select id="weatherSelect">
+      <option value="☀️ 晴天">☀️ 晴天</option>
+      <option value="☁️ 阴天">☁️ 阴天</option>
+      <option value="🌧️ 雨天">🌧️ 雨天</option>
+      <option value="⛄ 雪天">⛄ 雪天</option>
+      <option value="🌫️ 雾天">🌫️ 雾天</option>
+    </select>
+
+    <!-- 塔罗占卜：放在天气下面，注：在注销之上 -->
+    <div style="margin-top:12px;">
+      <h3 style="margin:0 0 8px 0;">🪄 塔罗占卜</h3>
+      <button id="tarotBtn" style="background:linear-gradient(45deg,#ff9a9e,#fad0c4);">开始占卜</button>
+      <div id="tarotResult" style="margin-top:10px;background:rgba(255,255,255,0.06);padding:10px;border-radius:8px;min-height:60px;color:#fff;"></div>
     </div>
 
-    <div class="flex-col">
-      <label>字号</label>
-      <select id="fontSizeSelect">
-        <option value="0.75rem">12px</option>
-        <option value="0.875rem">14px</option>
-        <option value="1rem">16px</option>
-        <option value="1.125rem">18px</option>
-        <option value="1.25rem">20px</option>
-      </select>
-    </div>
-
-    <div class="flex-col">
-      <label>心情</label>
-      <select id="moodSelect">
-        <option value="😃 开心">😃 开心</option>
-        <option value="😞 难受">😞 难受</option>
-        <option value="😐 平静">😐 平静</option>
-        <option value="😡 生气">😡 生气</option>
-        <option value="😴 疲惫">😴 疲惫</option>
-      </select>
-    </div>
-
-    <div class="flex-col">
-      <label>天气</label>
-      <select id="weatherSelect">
-        <option value="☀️ 晴天">☀️ 晴天</option>
-        <option value="☁️ 阴天">☁️ 阴天</option>
-        <option value="🌧️ 雨天">🌧️ 雨天</option>
-        <option value="⛄ 雪天">⛄ 雪天</option>
-        <option value="🌫️ 雾天">🌫️ 雾天</option>
-      </select>
-    </div>
-
-    <button id="logoutBtn" style="background:#f44336;">注销</button>
+    <button id="logoutBtn" style="background:#f44336;margin-top:14px;">注销</button>
   </div>
 
   <!-- 中间栏 -->
   <div class="center">
-    <h2>日志</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 id="welcomeTitle">日志</h2>
+      <div id="userEmail" style="font-size:0.9rem; color:#cfe6ff;"></div>
+    </div>
+
     <textarea id="lifeLog" placeholder="写下今天的日志"></textarea>
-    <button id="uploadBtn">上传日志</button>
+    <div style="display:flex; gap:10px;">
+      <button id="uploadBtn">上传日志</button>
+      <button id="clearBtn" style="background:rgba(255,255,255,0.08);">清空</button>
+    </div>
 
     <h3>当天日志</h3>
     <ul id="dayLogs"></ul>
@@ -164,9 +212,9 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 
     <div class="stats">
       <h3>天气统计</h3>
-      <label>选择年份</label>
+      <label class="small-label">选择年份</label>
       <select id="statYearSelect"></select>
-      <label>选择月份</label>
+      <label class="small-label">选择月份</label>
       <select id="statMonthSelect">
         <option value="all">全部</option>
         <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option>
@@ -184,7 +232,7 @@ li { margin: 5px 0; background: rgba(255,255,255,0.1); padding: 8px 10px; border
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script type="module">
-// Firebase 初始化
+// ------------------ Firebase 初始化 ------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -203,12 +251,13 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// ------------------ 全局变量 ------------------
 let isLogin = true;
 let currentUser = null;
 let allLogs = [];
 let weatherChart = null;
 
-// 登录/注册
+// ------------------ 身份认证（登录/注册） ------------------
 function handleAuth(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -216,12 +265,24 @@ function handleAuth(){
 
   if(isLogin){
     signInWithEmailAndPassword(auth, email, password)
-      .then(res => { currentUser = res.user; })
-      .catch(err => alert('登录失败: '+err.message));
+      .then(res => {
+        // 登录成功 handled by onAuthStateChanged
+        console.log('登录成功', res.user.email);
+      })
+      .catch(err => {
+        console.error('登录失败', err);
+        alert('登录失败: '+err.message);
+      });
   } else {
     createUserWithEmailAndPassword(auth, email, password)
-      .then(res => { alert('注册成功！请登录'); toggleAuthForm(); })
-      .catch(err => alert('注册失败: '+err.message));
+      .then(res => {
+        alert('注册成功！请登录');
+        toggleAuthForm();
+      })
+      .catch(err => {
+        console.error('注册失败', err);
+        alert('注册失败: '+err.message);
+      });
   }
 }
 
@@ -232,90 +293,121 @@ function toggleAuthForm(){
   document.getElementById('toggleAuth').textContent = isLogin ? '切换到注册' : '切换到登录';
 }
 
-// 上传日志
-function addLifeLog() {
-  const text = document.getElementById('lifeLog').value.trim();
-  if (!text) return alert('日志不能为空');
-  if (!currentUser) return alert('请先登录');
+document.getElementById('authButton').addEventListener('click', handleAuth);
+document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
 
-  const mood = document.getElementById('moodSelect').value;
-  const weather = document.getElementById('weatherSelect').value;
+// ------------------ 上传日志（包含 date/mood/weather/font/fontSize） ------------------
+async function addLifeLog() {
+  try {
+    const text = document.getElementById('lifeLog').value.trim();
+    if (!text) return alert('日志不能为空');
+    if (!currentUser) return alert('请先登录');
 
-  addDoc(collection(db, 'logs'), {
-    uid: currentUser.uid,
-    text,
-    mood,
-    weather,
-    ts: Date.now()
-  })
-  .then(()=> {
+    // 获取日期（flatpickr 填充的值）
+    const dateStr = document.getElementById('calendar').value || (new Date()).toISOString().slice(0,10);
+    const mood = document.getElementById('moodSelect').value || '';
+    const weather = document.getElementById('weatherSelect').value || '';
+    const font = document.getElementById('fontSelect').value;
+    const fontSize = document.getElementById('fontSizeSelect').value;
+
+    await addDoc(collection(db, 'logs'), {
+      uid: currentUser.uid,
+      date: dateStr,
+      text,
+      mood,
+      weather,
+      font,
+      fontSize,
+      ts: Date.now()
+    });
+
     document.getElementById('lifeLog').value = '';
-    loadAllLogs();
-  })
-  .catch(err => alert('上传失败: '+err.message));
+    await loadAllLogs();
+    console.log('日志保存成功');
+  } catch (err) {
+    console.error('上传失败', err);
+    alert('上传失败: '+(err.message||err));
+  }
 }
 
-// 加载日志
+// ------------------ 拉取用户日志并渲染 ------------------
 async function loadAllLogs() {
   if (!currentUser) return;
-  const userId = currentUser.uid;
-  const recentLogs = document.getElementById('recentLogs');
-  const historyLogs = document.getElementById('historyLogs');
-  const dayLogs = document.getElementById('dayLogs');
-  recentLogs.innerHTML = '';
-  historyLogs.innerHTML = '';
-  dayLogs.innerHTML = '';
+  try {
+    const userId = currentUser.uid;
+    const recentLogs = document.getElementById('recentLogs');
+    const historyLogs = document.getElementById('historyLogs');
+    const dayLogs = document.getElementById('dayLogs');
+    recentLogs.innerHTML = '';
+    historyLogs.innerHTML = '';
+    dayLogs.innerHTML = '';
 
-  const q = query(collection(db, 'logs'), where('uid','==',userId));
-  const snapshot = await getDocs(q);
-  allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  allLogs.sort((a,b) => b.ts - a.ts);
+    const q = query(collection(db, 'logs'), where('uid','==',userId));
+    const snapshot = await getDocs(q);
+    allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    allLogs.sort((a,b) => b.ts - a.ts); // 最新在前
 
-  allLogs.forEach((doc,i)=>{
-    const li = document.createElement('li');
-    li.textContent = `${doc.text} [${doc.mood} ${doc.weather}]`;
-    if(i<5) recentLogs.appendChild(li);
-    historyLogs.appendChild(li.cloneNode(true));
-  });
+    // 最近5条 & history
+    allLogs.forEach((doc,i)=>{
+      const li = document.createElement('li');
+      li.textContent = `${doc.date || ''} — ${doc.text} [${doc.mood || ''} ${doc.weather || ''}]`;
+      if(i<5) recentLogs.appendChild(li);
+      historyLogs.appendChild(li.cloneNode(true));
+    });
 
-  showDayLogs(new Date());
-  initStatYearSelect();
-  updateWeatherChart();
+    // 显示当天（或所选）日志
+    const calendarVal = document.getElementById('calendar').value;
+    const showDate = calendarVal ? new Date(calendarVal) : new Date();
+    showDayLogs(showDate);
+
+    initStatYearSelect();
+    updateWeatherChart();
+  } catch (err) {
+    console.error('loadAllLogs error', err);
+  }
 }
 
-// 显示当天日志 & 自动填充心情/天气
+// ------------------ 显示指定日期日志 & 自动填充心情/天气 ------------------
 function showDayLogs(date) {
   const dayLogs = document.getElementById('dayLogs');
   dayLogs.innerHTML = '';
   const start = new Date(date); start.setHours(0,0,0,0);
   const end = new Date(date); end.setHours(23,59,59,999);
-
-  const logs = allLogs.filter(d => d.ts >= start.getTime() && d.ts <= end.getTime());
+  const logs = allLogs.filter(d => {
+    const ts = d.ts || 0;
+    // prefer stored date string if present
+    if(d.date){
+      const dd = new Date(d.date);
+      return dd.getFullYear()===start.getFullYear() && dd.getMonth()===start.getMonth() && dd.getDate()===start.getDate();
+    }
+    return ts >= start.getTime() && ts <= end.getTime();
+  });
 
   if(logs.length){
-    const latest = logs[0]; // 最新一条
-    document.getElementById('moodSelect').value = latest.mood;
-    document.getElementById('weatherSelect').value = latest.weather;
+    const latest = logs[0];
+    if(latest.mood) document.getElementById('moodSelect').value = latest.mood;
+    if(latest.weather) document.getElementById('weatherSelect').value = latest.weather;
   }
 
   logs.forEach(d=>{
     const li = document.createElement('li');
-    li.textContent = `${d.text} [${d.mood} ${d.weather}]`;
+    li.textContent = `${d.date || ''} — ${d.text} [${d.mood || ''} ${d.weather || ''}]`;
     dayLogs.appendChild(li);
   });
 }
 
-// 历史记录切换
+// ------------------ 历史记录切换 ------------------
 function toggleHistory(){
   const el = document.getElementById('historyLogs');
   el.style.display = el.style.display==='none'?'block':'none';
 }
+document.getElementById('historyBtn').addEventListener('click', toggleHistory);
 
-// 初始化年份下拉
+// ------------------ 统计年份下拉 ------------------
 function initStatYearSelect(){
   const yearSelect = document.getElementById('statYearSelect');
   yearSelect.innerHTML = '';
-  const years = [...new Set(allLogs.map(l=>new Date(l.ts).getFullYear()))];
+  const years = [...new Set(allLogs.map(l=> new Date(l.ts || Date.now()).getFullYear()))];
   const currentYear = new Date().getFullYear();
   if(!years.includes(currentYear)) years.push(currentYear);
   years.sort((a,b)=>b-a);
@@ -328,35 +420,56 @@ function initStatYearSelect(){
   });
 }
 
-// 更新天气饼图
+// ------------------ 更新天气饼图 ------------------
 function updateWeatherChart(){
-  const year = parseInt(document.getElementById('statYearSelect').value);
-  const month = document.getElementById('statMonthSelect').value;
+  try {
+    const year = parseInt(document.getElementById('statYearSelect').value || new Date().getFullYear());
+    let month = document.getElementById('statMonthSelect').value;
 
-  let filtered = allLogs.filter(d=>{
-    const date = new Date(d.ts);
-    if(date.getFullYear()!==year) return false;
-    if(month!=='all' && date.getMonth()!==parseInt(month)) return false;
-    return true;
-  });
+    if(month === 'all') month = null;
+    if(month === null) month = null;
 
-  const weatherCounts = {};
-  filtered.forEach(d=>{
-    weatherCounts[d.weather] = (weatherCounts[d.weather]||0)+1;
-  });
-  const labels = Object.keys(weatherCounts);
-  const data = Object.values(weatherCounts);
+    const filtered = allLogs.filter(d=>{
+      const date = d.date ? new Date(d.date) : new Date(d.ts || 0);
+      if(date.getFullYear() !== year) return false;
+      if(month !== null && month !== 'all' && month !== '') {
+        if(date.getMonth() !== parseInt(month)) return false;
+      }
+      return true;
+    });
 
-  const ctx = document.getElementById('weatherChart').getContext('2d');
-  if(weatherChart) weatherChart.destroy();
-  weatherChart = new Chart(ctx, {
-    type: 'pie',
-    data: { labels, datasets:[{ data, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
-    options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
-  });
+    const weatherCounts = {};
+    filtered.forEach(d=>{
+      const w = d.weather || '未标注';
+      weatherCounts[w] = (weatherCounts[w] || 0) + 1;
+    });
+
+    const labels = Object.keys(weatherCounts);
+    const data = Object.values(weatherCounts);
+
+    const ctx = document.getElementById('weatherChart').getContext('2d');
+    if(weatherChart) weatherChart.destroy();
+    if(labels.length === 0){
+      // clear canvas and show message
+      ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
+      ctx.font = "14px Arial";
+      ctx.fillStyle = "#cfe6ff";
+      ctx.fillText("所选时段无天气数据", 10, 50);
+      return;
+    }
+
+    weatherChart = new Chart(ctx, {
+      type: 'pie',
+      data: { labels, datasets:[{ data, backgroundColor:['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'] }] },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom', labels:{ color:'#eaf3ff' } }, tooltip:{callbacks:{ label(ctx){ const tot = ctx.dataset.data.reduce((a,b)=>a+b,0); const val = ctx.parsed; const pct = ((val/tot)*100).toFixed(1); return `${ctx.label}: ${val} (${pct}%)`; }}} } }
+    });
+  } catch (err) {
+    console.error('updateWeatherChart error', err);
+  }
 }
+document.getElementById('updateChartBtn').addEventListener('click', updateWeatherChart);
 
-// 字体选择
+// ------------------ 字体/字号控制 ------------------
 document.getElementById('fontSelect').addEventListener('change', e=>{
   document.getElementById('lifeLog').style.fontFamily = e.target.value;
 });
@@ -364,38 +477,149 @@ document.getElementById('fontSizeSelect').addEventListener('change', e=>{
   document.getElementById('lifeLog').style.fontSize = e.target.value;
 });
 
-// ===== 绑定事件 =====
-document.getElementById('authButton').addEventListener('click', handleAuth);
-document.getElementById('toggleAuth').addEventListener('click', toggleAuthForm);
-document.getElementById('uploadBtn').addEventListener('click', addLifeLog);
-document.getElementById('historyBtn').addEventListener('click', toggleHistory);
-document.getElementById('logoutBtn').addEventListener('click', ()=>signOut(auth));
-document.getElementById('updateChartBtn').addEventListener('click', updateWeatherChart);
-
-// flatpickr 日历
+// ------------------ flatpickr 初始化 ------------------
 flatpickr("#calendar", {
   dateFormat: "Y-m-d",
   defaultDate: new Date(),
-  minDate: new Date().getFullYear() - 10 + "-01-01",
+  minDate: (new Date().getFullYear() - 10) + "-01-01",
   maxDate: new Date(),
   onChange: function(selectedDates){
     if(selectedDates.length) showDayLogs(selectedDates[0]);
   }
 });
 
-// 保持登录状态
+// ------------------ 登录状态监听（显示用户名 & 拉数据） ------------------
 onAuthStateChanged(auth, user => {
   if(user){
     currentUser = user;
     document.getElementById('authForm').style.display = 'none';
     document.getElementById('mainPage').style.display = 'flex';
+    // 显示邮箱作为用户名
+    document.getElementById('userEmail').textContent = user.email ? `欢迎，${user.email}` : '';
+    // 把日期设为今天
+    document.getElementById('calendar')._flatpickr && document.getElementById('calendar')._flatpickr.setDate(new Date(), true);
     loadAllLogs();
   } else {
     currentUser = null;
     document.getElementById('authForm').style.display = 'block';
     document.getElementById('mainPage').style.display = 'none';
+    document.getElementById('userEmail').textContent = '';
   }
 });
+
+// ------------------ 注销按钮 ------------------
+document.getElementById('logoutBtn').addEventListener('click', ()=> signOut(auth).catch(e=>console.error(e)));
+
+// ------------------ 清空编辑区按钮 ------------------
+document.getElementById('clearBtn').addEventListener('click', ()=> {
+  if(confirm('清空编辑区内容？')) document.getElementById('lifeLog').value = '';
+});
+
+// ------------------ 塔罗占卜功能 ------------------
+const tarotCards = [
+  { name: "愚者（The Fool）", meaning: "新的开始、冒险、信任直觉，拥抱未知。" },
+  { name: "魔术师（The Magician）", meaning: "创造力与掌控力，具备实现愿望的能力。" },
+  { name: "女祭司（The High Priestess）", meaning: "神秘、直觉、潜意识的智慧。" },
+  { name: "女皇（The Empress）", meaning: "丰饶、关怀、创造与爱的能量。" },
+  { name: "皇帝（The Emperor）", meaning: "权威、稳定、秩序与掌控局面。" },
+  { name: "教皇（The Hierophant）", meaning: "传统、精神引导、学习与信仰。" },
+  { name: "恋人（The Lovers）", meaning: "爱、抉择、人际关系中的和谐与吸引。" },
+  { name: "战车（The Chariot）", meaning: "意志力、决心、胜利与前进的力量。" },
+  { name: "力量（Strength）", meaning: "勇气、耐心、以温柔战胜困难。" },
+  { name: "隐者（The Hermit）", meaning: "内省、寻找真理、暂时的独处与智慧。" },
+  { name: "命运之轮（Wheel of Fortune）", meaning: "命运转折、机会、人生循环的变化。" },
+  { name: "正义（Justice）", meaning: "公平、真相、因果与抉择的平衡。" },
+  { name: "倒吊人（The Hanged Man）", meaning: "暂停、放下、以新的角度看问题。" },
+  { name: "死神（Death）", meaning: "结束与重生，新的篇章开始。" },
+  { name: "节制（Temperance）", meaning: "和谐、平衡、融合与疗愈。" },
+  { name: "恶魔（The Devil）", meaning: "欲望、束缚、诱惑与自我觉察。" },
+  { name: "高塔（The Tower）", meaning: "突变、旧有结构崩塌，为重建让路。" },
+  { name: "星星（The Star）", meaning: "希望、灵感、宁静与疗愈。" },
+  { name: "月亮（The Moon）", meaning: "幻象、直觉、潜意识的力量。" },
+  { name: "太阳（The Sun）", meaning: "喜悦、成功、活力与真理的光芒。" },
+  { name: "审判（Judgement）", meaning: "觉醒、救赎、重新评估自我。" },
+  { name: "世界（The World）", meaning: "圆满、成就、完成与新的旅程。" }
+];
+
+document.getElementById('tarotBtn').addEventListener('click', ()=>{
+  const card = tarotCards[Math.floor(Math.random() * tarotCards.length)];
+  const resultDiv = document.getElementById('tarotResult');
+  resultDiv.innerHTML = `<strong style="color:#fff">${card.name}</strong><br><span style="color:#dfe8ff">${card.meaning}</span>`;
+});
+
+// ------------------ 流星特效（canvas） ------------------
+(function setupMeteor(){
+  const canvas = document.getElementById('meteorCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const meteors = [];
+
+  function spawnMeteor(){
+    const startX = Math.random() * canvas.width;
+    const startY = Math.random() * (canvas.height * 0.35);
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    const angle = (Math.random() * 0.6 + 0.2) * (dir);
+    const speed = 8 + Math.random() * 8;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed + 1.5;
+    const length = 80 + Math.random() * 140;
+    meteors.push({ x: startX, y: startY, vx, vy, life:0, maxLife:30 + Math.random()*40, length, alpha:0 });
+    scheduleNext();
+  }
+
+  let timer = null;
+  function scheduleNext(){
+    const delay = 5000 + Math.random()*5000; // 5~10s
+    clearTimeout(timer);
+    timer = setTimeout(spawnMeteor, delay);
+  }
+  scheduleNext();
+
+  function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let i = meteors.length-1; i>=0; i--){
+      const m = meteors[i];
+      m.life++;
+      m.x += m.vx;
+      m.y += m.vy;
+      m.alpha = Math.min(1, m.life / 8);
+      const fade = 1 - (m.life / m.maxLife);
+      const trueAlpha = Math.max(0, m.alpha * fade);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const grad = ctx.createLinearGradient(m.x, m.y, m.x - m.vx*m.length*0.5, m.y - m.vy*m.length*0.5);
+      grad.addColorStop(0, `rgba(255,255,255,${trueAlpha})`);
+      grad.addColorStop(1, `rgba(150,180,255,0)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2 + Math.random()*1.5;
+      ctx.beginPath();
+      ctx.moveTo(m.x, m.y);
+      ctx.lineTo(m.x - m.vx * (m.length / 10), m.y - m.vy * (m.length / 10));
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(255,255,255,${trueAlpha})`;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 1.8 + Math.random()*1.8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      if(m.life > m.maxLife || m.x < -50 || m.y > canvas.height + 50 || m.x > canvas.width + 50){
+        meteors.splice(i,1);
+      }
+    }
+    requestAnimationFrame(update);
+  }
+  update();
+})();
+
+// ------------------ 初次加载时隐藏主界面，待 auth 检测 ------------------
+document.getElementById('mainPage').style.display = 'none';
+
 </script>
 </body>
 </html>
